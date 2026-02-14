@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/theme/app_theme.dart';
+import 'core/cache/cache_service.dart';
 import 'views/auth/splash_screen.dart';
 import 'views/auth/onboarding_screen.dart';
 import 'views/auth/login_screen.dart';
 import 'views/auth/register_screen.dart';
+import 'views/auth/forgot_password_screen.dart';
 import 'views/auth/activation_waiting_screen.dart';
 import 'views/navigation/main_navigation.dart';
 import 'viewmodels/dashboard_viewmodel.dart';
@@ -17,10 +20,19 @@ import 'views/governance/member_approval_view.dart';
 import 'views/governance/finance_management_view.dart';
 import 'views/governance/audit_logs_view.dart';
 import 'views/governance/role_management_view.dart';
+import 'views/profile/profile_screen.dart';
 
 import 'viewmodels/user_viewmodel.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables
+  await dotenv.load(fileName: ".env");
+  
+  // Initialize cache service
+  await CacheService.init();
+  
   runApp(
     MultiProvider(
       providers: [
@@ -49,6 +61,7 @@ class SeedVestApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
         '/login': (context) => const LoginScreen(),
+        '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/register': (context) => const RegisterScreen(),
         '/activation-waiting': (context) => const ActivationWaitingScreen(),
         '/dashboard': (context) => const MainNavigation(),
@@ -57,6 +70,7 @@ class SeedVestApp extends StatelessWidget {
         '/governance/finance': (context) => const FinanceManagementView(),
         '/governance/audit': (context) => const AuditLogsView(),
         '/governance/roles': (context) => const RoleManagementView(),
+        '/profile': (context) => const ProfileScreen(),
       },
     );
   }

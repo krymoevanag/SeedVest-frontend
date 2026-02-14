@@ -28,9 +28,7 @@ class _InvestmentsViewState extends State<InvestmentsView> {
     final viewModel = context.watch<GovernanceViewModel>();
     final currencyFormat = NumberFormat.currency(symbol: 'KES ');
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Group Investments')),
-      body: RefreshIndicator(
+    return RefreshIndicator(
         onRefresh: viewModel.fetchInvestments,
         child: viewModel.isLoading && viewModel.investments.isEmpty
             ? ListView.builder(
@@ -116,8 +114,7 @@ class _InvestmentsViewState extends State<InvestmentsView> {
                       );
                     },
                   ),
-      ),
-    );
+      );
   }
 }
 

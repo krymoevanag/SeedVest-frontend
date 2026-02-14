@@ -14,6 +14,11 @@ class DashboardViewModel extends ChangeNotifier {
   List<Contribution> _recentContributions = [];
   List<Contribution> get recentContributions => _recentContributions;
 
+  
+  // Admin Stats
+  Map<String, dynamic> _adminStats = {};
+  Map<String, dynamic> get adminStats => _adminStats;
+
   Future<void> fetchDashboardData() async {
     _setLoading(true);
     try {
@@ -29,6 +34,20 @@ class DashboardViewModel extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error fetching dashboard: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> fetchAdminStats() async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.getAdminStats();
+      if (response.statusCode == 200) {
+        _adminStats = response.data;
+      }
+    } catch (e) {
+      debugPrint('Error fetching admin stats: $e');
     } finally {
       _setLoading(false);
     }

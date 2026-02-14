@@ -26,6 +26,52 @@ class UserViewModel extends ChangeNotifier {
     }
   }
 
+
+
+  Future<bool> updateProfile(Map<String, dynamic> data) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.updateProfile(data);
+      if (response.statusCode == 200) {
+        // Refresh local user data
+        _currentUser = User.fromJson(response.data);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error updating profile: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> tryAutoLogin() async {
+    _setLoading(true);
+    try {
+      final token = await _apiService.storage.read(key: 'access_token');
+      if (token == null) return false;
+      
+      await fetchProfile();
+      return _currentUser != null;
+    } catch (e) {
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> logout() async {
+    _setLoading(true);
+    try {
+      await _apiService.logout();
+      _currentUser = null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   // Helper getters for roles
   bool get isAdmin => _currentUser?.role == 'ADMIN';
   bool get isTreasurer => _currentUser?.role == 'TREASURER' || isAdmin;

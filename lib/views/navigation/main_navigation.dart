@@ -6,6 +6,7 @@ import '../dashboard/member_dashboard.dart';
 import '../finance/contributions_view.dart';
 import '../dashboard/analytics_view.dart';
 import '../finance/investments_view.dart';
+import '../dashboard/admin_dashboard.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -17,12 +18,32 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [
-    const MemberDashboard(),
-    const AnalyticsView(),
-    const ContributionsView(),
-    const InvestmentsView(),
-  ];
+  List<Widget> _screens = []; // Initialize empty
+
+  List<String> _titles = [];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userViewModel = context.watch<UserViewModel>();
+    
+    // Rebuild screens list based on role
+    _screens = [
+      userViewModel.isAdmin 
+          ? const AdminDashboard() 
+          : const MemberDashboard(),
+      const AnalyticsView(),
+      const ContributionsView(),
+      const InvestmentsView(),
+    ];
+    
+    _titles = [
+      userViewModel.isAdmin ? 'Admin Dashboard' : 'SeedVest',
+      'Financial Analytics',
+      'My Contributions',
+      'Group Investments',
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -37,12 +58,22 @@ class _MainNavigationState extends State<MainNavigation> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SeedVest'),
+        title: Text(_titles[_selectedIndex]),
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_none),
-            onPressed: () {},
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No new notifications')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              Navigator.pushNamed(context, '/profile');
+            },
           ),
         ],
       ),
@@ -80,6 +111,7 @@ class _MainNavigationState extends State<MainNavigation> {
               title: const Text('My Profile'),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.pushNamed(context, '/profile');
               },
             ),
             const Divider(),
@@ -132,8 +164,16 @@ class _MainNavigationState extends State<MainNavigation> {
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Logout', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Navigator.pushReplacementNamed(context, '/login');
+              onTap: () async {
+                final userViewModel = context.read<UserViewModel>();
+                await userViewModel.logout();
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context, 
+                    '/login',
+                    (route) => false,
+                  );
+                }
               },
             ),
           ],

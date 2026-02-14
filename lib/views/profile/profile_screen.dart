@@ -1,0 +1,319 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../viewmodels/user_viewmodel.dart';
+import '../../core/theme/colors.dart';
+import '../widgets/custom_button.dart';
+import '../widgets/custom_card.dart';
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _firstNameController;
+  late TextEditingController _lastNameController;
+  late TextEditingController _phoneController;
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = context.read<UserViewModel>().currentUser;
+    // Split full name potentially, but better if we had separate fields in User model.
+    // For now, assuming User model has fullName, we might just edit phone number
+    // or if we updated User model to have first/last name.
+    // Let's check User model... it has fullName.
+    // Backend serializer has first_name, last_name.
+    // We should treat fullName as read-only or split it?
+    // Let's just allow editing Phone Number for now to be safe,
+    // or try to split the name.
+    
+    // Actually, let's look at the User model in Flutter.
+    // It has `fullName`.
+    // We can try to split it for the controller, but when saving we need to send first_name/last_name.
+    // Let's just add fields for First/Last Name to the Flutter User model to make this clean.
+    // But for now, to avoid breaking changes, let's just use empty strings or try to parse.
+    
+    var names = (user?.fullName ?? '').split(' ');
+    String first = names.isNotEmpty ? names.first : '';
+    String last = names.length > 1 ? names.sublist(1).join(' ') : '';
+
+    _firstNameController = TextEditingController(text: first);
+    _lastNameController = TextEditingController(text: last);
+    _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
+  }
+
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userViewModel = context.watch<UserViewModel>();
+    final user = userViewModel.currentUser;
+    final isLoading = userViewModel.isLoading;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Profile'),
+        actions: [
+          IconButton(
+            icon: Icon(_isEditing ? Icons.close : Icons.edit),
+            onPressed: () {
+              setState(() {
+                if (_isEditing) {
+                   // Cancel editing, reset fields
+                   var names = (user?.fullName ?? '').split(' ');
+                   _firstNameController.text = names.isNotEmpty ? names.first : '';
+                   _lastNameController.text = names.length > 1 ? names.sublist(1).join(' ') : '';
+                   _phoneController.text = user?.phoneNumber ?? '';
+                }
+                _isEditing = !_isEditing;
+              });
+            },
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // Profile Header
+            Center(
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    child: Text(
+                      user?.fullName.isNotEmpty == true 
+                          ? user!.fullName[0].toUpperCase() 
+                          : 'U',
+                      style: const TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.background,
+                      child: Icon(
+                        user?.isApproved == true ? Icons.check_circle : Icons.access_time,
+                        color: user?.isApproved == true ? AppColors.success : Colors.orange,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              user?.fullName ?? 'User',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            Text(
+              user?.email ?? '',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Info Details
+            Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('Personal Information'),
+                  CustomCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        _buildTextField(
+                          label: 'First Name',
+                          controller: _firstNameController,
+                          enabled: _isEditing,
+                          icon: Icons.person_outline,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          label: 'Last Name',
+                          controller: _lastNameController,
+                          enabled: _isEditing,
+                          icon: Icons.person_outline,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          label: 'Phone Number',
+                          controller: _phoneController,
+                          enabled: _isEditing,
+                          icon: Icons.phone_outlined,
+                          keyboardType: TextInputType.phone,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  _buildSectionHeader('Account Details'),
+                  CustomCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        _buildReadOnlyField('Email', user?.email ?? '', Icons.email_outlined),
+                        const Divider(),
+                        _buildReadOnlyField('Membership No.', user?.membershipNumber ?? 'Pending', Icons.card_membership), // Need to add membershipNumber to User model in Flutter
+                        const Divider(),
+                        _buildReadOnlyField('Role', user?.role ?? 'Member', Icons.security),
+                        const Divider(),
+                        _buildReadOnlyField('Status', user?.isApproved == true ? 'Active' : 'Pending Approval', Icons.info_outline),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 32),
+            
+            if (_isEditing)
+              CustomButton(
+                text: 'Save Changes',
+                isLoading: isLoading,
+                onPressed: () async {
+                  if (_formKey.currentState!.validate()) {
+                    final success = await userViewModel.updateProfile({
+                      'first_name': _firstNameController.text,
+                      'last_name': _lastNameController.text,
+                      'phone_number': _phoneController.text,
+                    });
+                    
+                    if (mounted) {
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Profile updated successfully!')),
+                        );
+                        setState(() => _isEditing = false);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Failed to update profile. Please try again.'), backgroundColor: Colors.red),
+                        );
+                      }
+                    }
+                  }
+                },
+              ),
+            
+            if (!_isEditing) ...[
+              const SizedBox(height: 24),
+              CustomButton(
+                text: 'Logout',
+                backgroundColor: Colors.red.shade50,
+                textColor: Colors.red,
+                isLoading: false,
+                onPressed: () async {
+                  final userViewModel = context.read<UserViewModel>();
+                  await userViewModel.logout();
+                  if (context.mounted) {
+                    Navigator.pushNamedAndRemoveUntil(
+                      context, 
+                      '/login',
+                      (route) => false,
+                    );
+                  }
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, left: 4),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    required bool enabled,
+    required IconData icon,
+    TextInputType? keyboardType,
+  }) {
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: enabled ? const OutlineInputBorder() : InputBorder.none,
+        contentPadding: enabled ? null : const EdgeInsets.all(0),
+        filled: enabled,
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter $label';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildReadOnlyField(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.grey, size: 20),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}

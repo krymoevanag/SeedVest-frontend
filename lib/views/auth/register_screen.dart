@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import '../../core/network/api_service.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_button.dart';
 
@@ -17,6 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _apiService = ApiService();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -70,7 +73,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'Enter password';
     if (value.length < 8) return 'Minimum 8 characters';
-    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$').hasMatch(value)) {
+    // Updated regex to allow special characters (any character allowed as long as there is at least 1 letter and 1 number)
+    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d).{8,}$').hasMatch(value)) {
       return 'Must include letters and numbers';
     }
     return null;
@@ -222,13 +226,93 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 CustomButton(
                   text: 'CREATE ACCOUNT',
                   isLoading: _isLoading,
-                  onPressed: _isFormValid
+                  onPressed: (_isFormValid && !_isLoading)
                       ? () async {
                           setState(() => _isLoading = true);
-                          // Reduced delay to simulate API call
-                          await Future.delayed(const Duration(seconds: 2));
-                          if (mounted) {
-                            Navigator.pushReplacementNamed(context, '/activation-waiting');
+                          
+                          try {
+                            // Check connectivity first
+                            final isConnected = await _apiService.checkConnectivity();
+                            
+                            if (!isConnected) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Cannot connect to server. Please check your internet connection and try again.',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                    duration: Duration(seconds: 4),
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+                            
+                            // Split full name into first and last name
+                            final fullName = _fullNameController.text.trim();
+                            final nameParts = fullName.split(' ');
+                            final firstName = nameParts.first;
+                            final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+                            
+                            // Attempt registration
+                            await _apiService.register({
+                              'first_name': firstName,
+                              'last_name': lastName,
+                              'username': _usernameController.text,
+                              'email': _emailController.text,
+                              'phone_number': _phoneController.text,
+                              'password': _passwordController.text,
+                              'password2': _confirmPasswordController.text, // Added password2 which is required by serializer
+                            });
+                            
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Registration successful! Awaiting admin approval.'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              Navigator.pushReplacementNamed(context, '/activation-waiting');
+                            }
+                            } catch (e) {
+                              if (mounted) {
+                                String errorMessage = 'Registration failed. Please try again.';
+                                
+                                // Enhanced error parsing
+                                if (e is DioException) {
+                                  if (e.response?.data != null) {
+                                    final data = e.response?.data;
+                                    if (data is Map) {
+                                      // Django usually returns errors as specific field keys or 'detail'
+                                      if (data.containsKey('username')) {
+                                        errorMessage = 'Username already exists.';
+                                      } else if (data.containsKey('email')) {
+                                        errorMessage = 'Email already registered.';
+                                      } else if (data.containsKey('detail')) {
+                                        errorMessage = data['detail'].toString();
+                                      } else {
+                                        // Concatenate all error messages
+                                        errorMessage = data.values.join('\n');
+                                      }
+                                    }
+                                  } else {
+                                    errorMessage = 'Server error: ${e.response?.statusCode}';
+                                  }
+                                }
+                                
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(errorMessage),
+                                    backgroundColor: Colors.red,
+                                    duration: const Duration(seconds: 5),
+                                  ),
+                                );
+                              }
+                            } finally {
+                            if (mounted) {
+                              setState(() => _isLoading = false);
+                            }
                           }
                         }
                       : null,

@@ -6,6 +6,7 @@ class User {
   final String role;
   final bool isApproved;
   final String? phoneNumber;
+  final String? membershipNumber;
 
   User({
     required this.id,
@@ -15,6 +16,7 @@ class User {
     required this.role,
     this.isApproved = false,
     this.phoneNumber,
+    this.membershipNumber,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class User {
       role: json['role'] ?? 'MEMBER',
       isApproved: json['is_approved'] ?? false,
       phoneNumber: json['phone_number'],
+      membershipNumber: json['membership_number'],
     );
   }
 
@@ -38,6 +41,7 @@ class User {
       'role': role,
       'is_approved': isApproved,
       'phone_number': phoneNumber,
+      'membership_number': membershipNumber,
     };
   }
 }

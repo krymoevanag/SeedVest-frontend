@@ -117,7 +117,6 @@ class _ContributionsViewState extends State<ContributionsView> {
     final currencyFormat = NumberFormat.currency(symbol: 'KES ');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Contributions')),
       body: RefreshIndicator(
         onRefresh: viewModel.fetchContributions,
         child: viewModel.isLoading && viewModel.contributions.isEmpty

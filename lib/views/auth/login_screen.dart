@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:dio/dio.dart';
+import '../../core/network/api_service.dart';
+import '../../viewmodels/user_viewmodel.dart';
 import '../widgets/custom_button.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,7 +16,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _apiService = ApiService();
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -40,13 +46,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     TextFormField(
                       controller: _usernameController,
+                      keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
-                        labelText: 'Username',
-                        prefixIcon: Icon(Icons.person_outline),
+                        labelText: 'Email Address',
+                        prefixIcon: Icon(Icons.email_outlined),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter your username';
+                          return 'Please enter your email';
                         }
                         return null;
                       },
@@ -83,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: () {
-                          // TODO: Forgot Password
+                          Navigator.pushNamed(context, '/forgot-password');
                         },
                         child: const Text('Forgot Password?'),
                       ),
@@ -91,10 +98,72 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 32),
                     CustomButton(
                       text: 'Login',
-                      onPressed: () {
+                      isLoading: _isLoading,
+                      onPressed: _isLoading ? null : () async {
                         if (_formKey.currentState!.validate()) {
-                          // TODO: Call ApiService login
-                          Navigator.pushReplacementNamed(context, '/dashboard');
+                          setState(() => _isLoading = true);
+                          
+                          try {
+                            // Attempt login directly. Connectivity errors will be caught by Dio.
+                            final response = await _apiService.login(
+                              _usernameController.text,
+                              _passwordController.text,
+                            );
+                            
+                            // Store tokens
+                            await _apiService.storage.write(
+                              key: 'access_token',
+                              value: response['access'],
+                            );
+                            await _apiService.storage.write(
+                              key: 'refresh_token',
+                              value: response['refresh'],
+                            );
+                            
+                            // Update user profile before navigation
+                            if (mounted) {
+                              await Provider.of<UserViewModel>(context, listen: false).fetchProfile();
+                            }
+                            
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Login successful!'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              Navigator.pushReplacementNamed(context, '/dashboard');
+                            }
+                            } catch (e) {
+                              if (mounted) {
+                                String errorMessage = 'Login failed. Please try again.';
+                                
+                                if (e is DioException) {
+                                  if (e.response?.statusCode == 401) {
+                                    errorMessage = 'Invalid email or password.';
+                                  } else if (e.response?.data != null) {
+                                    final data = e.response?.data;
+                                    if (data is Map && data.containsKey('detail')) {
+                                      errorMessage = data['detail'].toString();
+                                    } else if (data is Map && data.containsKey('error')) {
+                                      errorMessage = data['error'].toString();
+                                    }
+                                  }
+                                }
+                                
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(errorMessage),
+                                    backgroundColor: Colors.red,
+                                    duration: const Duration(seconds: 4),
+                                  ),
+                                );
+                              }
+                            } finally {
+                            if (mounted) {
+                              setState(() => _isLoading = false);
+                            }
+                          }
                         }
                       },
                     ),

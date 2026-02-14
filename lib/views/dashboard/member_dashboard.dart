@@ -26,21 +26,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
     final viewModel = context.watch<DashboardViewModel>();
     final currencyFormat = NumberFormat.currency(symbol: 'KES ');
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('SeedVest'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
+    return RefreshIndicator(
         onRefresh: viewModel.fetchDashboardData,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
@@ -175,8 +161,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }
 

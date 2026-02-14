@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
+import '../../viewmodels/user_viewmodel.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,9 +18,18 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _navigateToNext() async {
-    await Future.delayed(const Duration(seconds: 3));
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+
+    final userViewModel = Provider.of<UserViewModel>(context, listen: false);
+    final isLoggedIn = await userViewModel.tryAutoLogin();
+
     if (mounted) {
-      Navigator.pushReplacementNamed(context, '/onboarding');
+      if (isLoggedIn) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      } else {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
     }
   }
 
