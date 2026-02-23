@@ -14,13 +14,86 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _apiService = ApiService();
+  final ApiService _apiService = ApiService();
+
   bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _sendResetLink() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final Response response = await _apiService.requestPasswordReset(
+        _emailController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final message = response.data["detail"] ??
+            "If an account exists, a reset email has been sent.";
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+
+        Navigator.pop(context);
+      } else {
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+        );
+      }
+    } on DioException catch (e) {
+      if (!mounted) return;
+
+      debugPrint("========== DIO ERROR ==========");
+      debugPrint("Message: ${e.message}");
+      debugPrint("Status Code: ${e.response?.statusCode}");
+      debugPrint("Response Data: ${e.response?.data}");
+      debugPrint("================================");
+
+      String errorMessage = "Network error. Please try again.";
+
+      if (e.response != null && e.response?.data != null) {
+        final data = e.response?.data;
+        if (data is Map && data.containsKey("detail")) {
+          errorMessage = data["detail"].toString();
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      debugPrint("Unexpected error: $e");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Something went wrong."),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -38,7 +111,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Form(
             key: _formKey,
             child: Column(
@@ -46,7 +119,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               children: [
                 const SizedBox(height: 12),
                 Text(
-                  'Enter your email address and we\'ll send you instructions to reset your password.',
+                  "Enter your email and we'll send password reset instructions.",
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: AppColors.textSecondary,
                         height: 1.5,
@@ -70,7 +143,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       return 'Please enter your email';
                     }
                     if (!value.contains('@')) {
-                      return 'Please enter a valid email';
+                      return 'Enter a valid email';
                     }
                     return null;
                   },
@@ -79,49 +152,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 CustomButton(
                   text: 'SEND RESET LINK',
                   isLoading: _isLoading,
-                  onPressed: _isLoading
-                      ? null
-                      : () async {
-                          if (_formKey.currentState!.validate()) {
-                            setState(() => _isLoading = true);
-                            try {
-                              await _apiService.requestPasswordReset(_emailController.text);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Reset link sent! Check your email.'),
-                                    backgroundColor: Colors.green,
-                                    duration: Duration(seconds: 4),
-                                  ),
-                                );
-                                Navigator.pop(context); // Go back to login
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                String errorMessage = 'Failed to send reset link.';
-                                if (e is DioException) {
-                                  // Depending on backend, 404 might mean user not found, 
-                                  // or generic error if trying to hide user existence.
-                                  if (e.response?.statusCode == 404) {
-                                     errorMessage = 'User not found.';
-                                  } else {
-                                     errorMessage = 'Error: ${e.response?.data['detail'] ?? e.message}';
-                                  }
-                                }
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(errorMessage),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            } finally {
-                              if (mounted) {
-                                setState(() => _isLoading = false);
-                              }
-                            }
-                          }
-                        },
+                  onPressed: _isLoading ? null : _sendResetLink,
                 ),
               ],
             ),

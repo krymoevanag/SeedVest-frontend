@@ -66,16 +66,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String? _validatePhone(String? value) {
     if (value == null || value.isEmpty) return 'Enter phone number';
-    if (!RegExp(r'^(07|01|254)\d{8}$').hasMatch(value)) return 'Enter valid M-Pesa number';
+    if (!RegExp(r'^(07|01|254)\d{8}$').hasMatch(value))
+      return 'Enter valid M-Pesa number';
     return null;
   }
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'Enter password';
     if (value.length < 8) return 'Minimum 8 characters';
-    // Updated regex to allow special characters (any character allowed as long as there is at least 1 letter and 1 number)
-    if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d).{8,}$').hasMatch(value)) {
-      return 'Must include letters and numbers';
+
+    // Requirements: At least one letter, one digit, and one special character
+    bool hasLetters = RegExp(r'[a-zA-Z]').hasMatch(value);
+    bool hasDigits = RegExp(r'\d').hasMatch(value);
+    bool hasSpecial = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value);
+
+    if (!hasLetters || !hasDigits || !hasSpecial) {
+      return 'Must include letters, numbers and special characters';
     }
     return null;
   }
@@ -118,7 +124,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     'Evans Kirimi',
                     Icons.person_outline,
                   ),
-                  validator: (value) => value!.isEmpty ? 'Enter your full name' : null,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Enter your full name' : null,
                 ),
                 const SizedBox(height: 20),
 
@@ -130,7 +137,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     'evans_k',
                     Icons.badge,
                   ),
-                  validator: (value) => value!.isEmpty ? 'Enter a username' : null,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Enter a username' : null,
                 ),
                 const SizedBox(height: 20),
 
@@ -170,10 +178,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Icons.lock_outline,
                     suffix: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                         size: 20,
                       ),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
                   validator: _validatePassword,
@@ -190,14 +201,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Icons.lock_outline,
                     suffix: IconButton(
                       icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        _obscureConfirmPassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                         size: 20,
                       ),
-                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                      onPressed: () => setState(() =>
+                          _obscureConfirmPassword = !_obscureConfirmPassword),
                     ),
                   ),
                   validator: (value) {
-                    if (value != _passwordController.text) return 'Passwords do not match';
+                    if (value != _passwordController.text)
+                      return 'Passwords do not match';
                     return null;
                   },
                 ),
@@ -207,7 +222,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.info_outline, size: 18, color: AppColors.textSecondary),
+                    const Icon(Icons.info_outline,
+                        size: 18, color: AppColors.textSecondary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -229,11 +245,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onPressed: (_isFormValid && !_isLoading)
                       ? () async {
                           setState(() => _isLoading = true);
-                          
+
                           try {
                             // Check connectivity first
-                            final isConnected = await _apiService.checkConnectivity();
-                            
+                            final isConnected =
+                                await _apiService.checkConnectivity();
+
                             if (!isConnected) {
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -248,13 +265,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               }
                               return;
                             }
-                            
+
                             // Split full name into first and last name
                             final fullName = _fullNameController.text.trim();
                             final nameParts = fullName.split(' ');
                             final firstName = nameParts.first;
-                            final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
-                            
+                            final lastName = nameParts.length > 1
+                                ? nameParts.sublist(1).join(' ')
+                                : '';
+
                             // Attempt registration
                             await _apiService.register({
                               'first_name': firstName,
@@ -263,53 +282,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               'email': _emailController.text,
                               'phone_number': _phoneController.text,
                               'password': _passwordController.text,
-                              'password2': _confirmPasswordController.text, // Added password2 which is required by serializer
+                              'password2': _confirmPasswordController
+                                  .text, // Added password2 which is required by serializer
                             });
-                            
+
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Registration successful! Awaiting admin approval.'),
+                                  content: Text(
+                                      'Registration successful! Awaiting admin approval.'),
                                   backgroundColor: Colors.green,
                                 ),
                               );
-                              Navigator.pushReplacementNamed(context, '/activation-waiting');
+                              Navigator.pushReplacementNamed(
+                                  context, '/activation-waiting');
                             }
-                            } catch (e) {
-                              if (mounted) {
-                                String errorMessage = 'Registration failed. Please try again.';
-                                
-                                // Enhanced error parsing
-                                if (e is DioException) {
-                                  if (e.response?.data != null) {
-                                    final data = e.response?.data;
-                                    if (data is Map) {
-                                      // Django usually returns errors as specific field keys or 'detail'
-                                      if (data.containsKey('username')) {
-                                        errorMessage = 'Username already exists.';
-                                      } else if (data.containsKey('email')) {
-                                        errorMessage = 'Email already registered.';
-                                      } else if (data.containsKey('detail')) {
-                                        errorMessage = data['detail'].toString();
-                                      } else {
-                                        // Concatenate all error messages
-                                        errorMessage = data.values.join('\n');
-                                      }
+                          } catch (e) {
+                            if (mounted) {
+                              String errorMessage =
+                                  'Registration failed. Please try again.';
+
+                              // Enhanced error parsing
+                              if (e is DioException) {
+                                if (e.response?.data != null) {
+                                  final data = e.response?.data;
+                                  if (data is Map) {
+                                    // Django usually returns errors as specific field keys or 'detail'
+                                    if (data.containsKey('username')) {
+                                      errorMessage = 'Username already exists.';
+                                    } else if (data.containsKey('email')) {
+                                      errorMessage =
+                                          'Email already registered.';
+                                    } else if (data.containsKey('detail')) {
+                                      errorMessage = data['detail'].toString();
+                                    } else {
+                                      // Concatenate all error messages
+                                      errorMessage = data.values.join('\n');
                                     }
-                                  } else {
-                                    errorMessage = 'Server error: ${e.response?.statusCode}';
                                   }
+                                } else {
+                                  errorMessage =
+                                      'Server error: ${e.response?.statusCode}';
                                 }
-                                
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(errorMessage),
-                                    backgroundColor: Colors.red,
-                                    duration: const Duration(seconds: 5),
-                                  ),
-                                );
                               }
-                            } finally {
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(errorMessage),
+                                  backgroundColor: Colors.red,
+                                  duration: const Duration(seconds: 5),
+                                ),
+                              );
+                            }
+                          } finally {
                             if (mounted) {
                               setState(() => _isLoading = false);
                             }
@@ -325,7 +350,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     const Text('Already have an account? '),
                     GestureDetector(
-                      onTap: () => Navigator.pushReplacementNamed(context, '/login'),
+                      onTap: () =>
+                          Navigator.pushReplacementNamed(context, '/login'),
                       child: const Text(
                         'Login',
                         style: TextStyle(
@@ -361,7 +387,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  InputDecoration _buildInputDecoration(String hint, IconData icon, {Widget? suffix}) {
+  InputDecoration _buildInputDecoration(String hint, IconData icon,
+      {Widget? suffix}) {
     return InputDecoration(
       hintText: hint,
       prefixIcon: Icon(icon, size: 20),
@@ -377,7 +404,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.secondary, width: 2), // Royal Blue active
+        borderSide: const BorderSide(
+            color: AppColors.secondary, width: 2), // Royal Blue active
       ),
       filled: true,
       fillColor: Colors.white,

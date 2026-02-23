@@ -1,3 +1,4 @@
+// lib/core/network/api_service.dart
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/config.dart';
@@ -11,38 +12,36 @@ class ApiService {
   final ConnectivityService _connectivityService = ConnectivityService();
 
   ApiService() {
-    // Use environment-based URL configuration
     dio.options.baseUrl = AppConfig.apiUrl;
     dio.options.connectTimeout = const Duration(seconds: 10);
     dio.options.receiveTimeout = const Duration(seconds: 10);
-    
+
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         String? token = await storage.read(key: 'access_token');
-        if (token != null) {
+
+        if (token != null &&
+            !options.path.contains('password-reset') &&
+            !options.path.contains('token/')) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+
         return handler.next(options);
       },
       onError: (DioException e, handler) async {
-        // JWT Auto-Refresh on 401 Unauthorized
         if (e.response?.statusCode == 401) {
           final refreshToken = await storage.read(key: 'refresh_token');
           if (refreshToken != null) {
             try {
-              // Attempt to refresh the token
-              final response = await dio.post(
-                '/token/refresh/',
-                data: {'refresh': refreshToken},
-              );
-              
-              // Store new access token
+              final response = await dio.post('token/refresh/', data: {
+                'refresh': refreshToken,
+              });
+
               await storage.write(
                 key: 'access_token',
                 value: response.data['access'],
               );
-              
-              // Retry the original request with new token
+
               final opts = Options(
                 method: e.requestOptions.method,
                 headers: {
@@ -50,17 +49,16 @@ class ApiService {
                   'Authorization': 'Bearer ${response.data['access']}'
                 },
               );
-              
+
               final cloneReq = await dio.request(
                 e.requestOptions.path,
                 options: opts,
                 data: e.requestOptions.data,
                 queryParameters: e.requestOptions.queryParameters,
               );
-              
+
               return handler.resolve(cloneReq);
-            } catch (refreshError) {
-              // Refresh failed, clear tokens (user needs to login again)
+            } catch (_) {
               await storage.deleteAll();
               return handler.next(e);
             }
@@ -71,93 +69,125 @@ class ApiService {
     ));
   }
 
-  // Connectivity Check
+  /// Connectivity check
   Future<bool> checkConnectivity() async {
     try {
       final response = await dio.get(
-        '/health/',
+        'health/',
         options: Options(
           sendTimeout: const Duration(seconds: 5),
           receiveTimeout: const Duration(seconds: 5),
         ),
       );
       return response.statusCode == 200;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
 
-
+  // ======================
   // Auth Methods
-  Future<void> requestPasswordReset(String email) async {
-    await dio.post('/password-reset/', data: {'email': email});
-  }
+  // ======================
 
-  Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await dio.post('/token/', data: {
+  Future<Response> login(String email, String password) async {
+    final response = await dio.post('token/', data: {
       'email': email,
       'password': password,
     });
-    
-    // Store additional user info
+
+    if (response.data['access'] != null) {
+      await storage.write(key: 'access_token', value: response.data['access']);
+    }
+    if (response.data['refresh'] != null) {
+      await storage.write(
+          key: 'refresh_token', value: response.data['refresh']);
+    }
     if (response.data['role'] != null) {
       await storage.write(key: 'user_role', value: response.data['role']);
     }
     if (response.data['user_id'] != null) {
-      await storage.write(key: 'user_id', value: response.data['user_id'].toString());
+      await storage.write(
+          key: 'user_id', value: response.data['user_id'].toString());
     }
-    
-    
-    return response.data;
+
+    return response;
   }
 
-  Future<void> logout() async {
+  Future<Response> logout() async {
     try {
       final refreshToken = await storage.read(key: 'refresh_token');
       if (refreshToken != null) {
-        await dio.post('/accounts/logout/', data: {'refresh': refreshToken});
+        await dio.post('accounts/logout/', data: {'refresh': refreshToken});
       }
-    } catch (e) {
-      // Ignore errors during logout (e.g. if token is already invalid)
+    } catch (_) {
+      // Ignore logout errors
     } finally {
       await storage.deleteAll();
       await _cacheService.clearCache();
     }
+    return Response(
+      requestOptions: RequestOptions(path: 'accounts/logout/'),
+      statusCode: 200,
+      data: {'detail': 'Logged out successfully'},
+    );
   }
 
   Future<Response> register(Map<String, dynamic> userData) async {
-    return await dio.post('/accounts/register/', data: userData);
+    return await dio.post('accounts/register/', data: userData);
   }
 
   Future<Response> updateProfile(Map<String, dynamic> userData) async {
-    return await dio.patch('/accounts/users/me/', data: userData);
+    return await dio.patch('accounts/users/me/', data: userData);
   }
 
-  // Payment Methods
-  Future<Response> initiateMpesaPayment(double amount, String phoneNumber) async {
-    return await dio.post('/payments/mpesa/pay/', data: {
+  // ======================
+  // Password Reset
+  // ======================
+
+  Future<Response> requestPasswordReset(String email) async {
+    return await dio.post('accounts/password-reset/', data: {'email': email});
+  }
+
+  Future<Response> confirmPasswordReset({
+    required String uid,
+    required String token,
+    required String newPassword,
+  }) async {
+    return await dio.post('accounts/password-reset-confirm/', data: {
+      'uid': uid,
+      'token': token,
+      'new_password': newPassword,
+    });
+  }
+
+  // ======================
+  // Finance & Payments
+  // ======================
+
+  Future<Response> initiateMpesaPayment(
+      double amount, String phoneNumber) async {
+    return await dio.post('payments/mpesa/pay/', data: {
       'amount': amount,
       'phone_number': phoneNumber,
     });
   }
 
-  // Finance Methods with Offline Support
   Future<Response> getContributions() async {
     const cacheKey = 'contributions';
     try {
-      final response = await dio.get('/finance/contributions/');
-      // Cache successful response
+      final response = await dio.get('finance/contributions/');
       if (AppConfig.isOfflineModeEnabled) {
         await _cacheService.cacheData(cacheKey, response.data);
       }
       return response;
-    } catch (e) {
-      // If offline, return cached data
-      if (AppConfig.isOfflineModeEnabled && !await _connectivityService.isConnected) {
-        final cached = _cacheService.getCachedData(cacheKey, maxAge: const Duration(hours: 1));
+    } catch (_) {
+      if (AppConfig.isOfflineModeEnabled &&
+          !await _connectivityService.isConnected) {
+        final cached = _cacheService.getCachedData(cacheKey,
+            maxAge: const Duration(hours: 1));
         if (cached != null) {
           return Response(
-            requestOptions: RequestOptions(path: '/finance/contributions/'),
+            requestOptions: RequestOptions(path: 'finance/contributions/'),
             data: cached,
             statusCode: 200,
           );
@@ -170,19 +200,19 @@ class ApiService {
   Future<Response> getPenalties() async {
     const cacheKey = 'penalties';
     try {
-      final response = await dio.get('/finance/penalties/');
-      // Cache successful response
+      final response = await dio.get('finance/penalties/');
       if (AppConfig.isOfflineModeEnabled) {
         await _cacheService.cacheData(cacheKey, response.data);
       }
       return response;
-    } catch (e) {
-      // If offline, return cached data
-      if (AppConfig.isOfflineModeEnabled && !await _connectivityService.isConnected) {
-        final cached = _cacheService.getCachedData(cacheKey, maxAge: const Duration(hours: 1));
+    } catch (_) {
+      if (AppConfig.isOfflineModeEnabled &&
+          !await _connectivityService.isConnected) {
+        final cached = _cacheService.getCachedData(cacheKey,
+            maxAge: const Duration(hours: 1));
         if (cached != null) {
           return Response(
-            requestOptions: RequestOptions(path: '/finance/penalties/'),
+            requestOptions: RequestOptions(path: 'finance/penalties/'),
             data: cached,
             statusCode: 200,
           );
@@ -192,40 +222,40 @@ class ApiService {
     }
   }
 
-  // Governance & Admin Methods
-  Future<Response> getAdminStats() async {
-    return await dio.get('/accounts/admin-stats/');
-  }
-
-  Future<Response> getPendingUsers() async {
-    return await dio.get('/accounts/pending-users/');
-  }
-
-  Future<Response> approveUser(int userId) async {
-    return await dio.patch('/accounts/users/$userId/', data: {
-      'is_approved': true,
-    });
-  }
-
-  Future<Response> updateUserRole(int userId, String role) async {
-    return await dio.patch('/accounts/users/$userId/', data: {
-      'role': role,
-    });
-  }
-
-  Future<Response> getAuditLogs() async {
-    return await dio.get('/notifications/notifications/');
-  }
-
   Future<Response> getInvestments() async {
-    return await dio.get('/finance/investments/');
+    return await dio.get('finance/investments/');
   }
 
   Future<Response> createInvestment(Map<String, dynamic> data) async {
-    return await dio.post('/finance/investments/', data: data);
+    return await dio.post('finance/investments/', data: data);
   }
 
   Future<Response> issuePenalty(Map<String, dynamic> data) async {
-    return await dio.post('/finance/penalties/', data: data);
+    return await dio.post('finance/penalties/', data: data);
+  }
+
+  // ======================
+  // Admin / Governance
+  // ======================
+
+  Future<Response> getAdminStats() async {
+    return await dio.get('accounts/admin-stats/');
+  }
+
+  Future<Response> getPendingUsers() async {
+    return await dio.get('accounts/pending-users/');
+  }
+
+  Future<Response> approveUser(int userId) async {
+    return await dio
+        .patch('accounts/users/$userId/', data: {'is_approved': true});
+  }
+
+  Future<Response> updateUserRole(int userId, String role) async {
+    return await dio.patch('accounts/users/$userId/', data: {'role': role});
+  }
+
+  Future<Response> getAuditLogs() async {
+    return await dio.get('notifications/notifications/');
   }
 }
