@@ -104,19 +104,27 @@ class _SeedVestAppState extends State<SeedVestApp> {
   void _handleDeepLink(Uri uri) {
     // Expected format:
     // seedvest://reset-password/<uid>/<token>
+    debugPrint('Deep link received: $uri');
 
     if (uri.scheme == 'seedvest' && uri.host == 'reset-password') {
       if (uri.pathSegments.length >= 2) {
         final uid = uri.pathSegments[0];
         final token = uri.pathSegments[1];
 
-        Navigator.of(context).pushNamed(
-          '/reset-password',
-          arguments: {
-            'uid': uid,
-            'token': token,
-          },
-        );
+        // Defer navigation to ensure the widget tree and navigator are ready
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.of(context).pushNamed(
+              '/reset-password',
+              arguments: {
+                'uid': uid,
+                'token': token,
+              },
+            );
+          }
+        });
+      } else {
+        debugPrint('Deep link missing uid/token segments: ${uri.pathSegments}');
       }
     }
   }

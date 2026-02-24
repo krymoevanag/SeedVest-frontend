@@ -40,6 +40,11 @@
                 android:name="flutterEmbedding"
                 android:value="2" />
 
+            <!-- Disable Flutter built-in deep link handler to avoid conflict with app_links -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false" />
+
         </activity>
 
     </application>
