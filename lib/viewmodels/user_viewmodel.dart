@@ -4,10 +4,10 @@ import '../data/models/user.dart';
 
 class UserViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
-  
+
   User? _currentUser;
   User? get currentUser => _currentUser;
-  
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -25,8 +25,6 @@ class UserViewModel extends ChangeNotifier {
       _setLoading(false);
     }
   }
-
-
 
   Future<bool> updateProfile(Map<String, dynamic> data) async {
     _setLoading(true);
@@ -52,7 +50,7 @@ class UserViewModel extends ChangeNotifier {
     try {
       final token = await _apiService.storage.read(key: 'access_token');
       if (token == null) return false;
-      
+
       await fetchProfile();
       return _currentUser != null;
     } catch (e) {
@@ -72,8 +70,26 @@ class UserViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> deleteAccount() async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.deleteSelfAccount();
+      if (response.statusCode == 204 || response.statusCode == 200) {
+        await logout();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error deleting account: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   // Helper getters for roles
-  bool get isAdmin => _currentUser?.role == 'ADMIN';
+  bool get isAdmin =>
+      _currentUser?.role == 'ADMIN' || (_currentUser?.isSuperuser ?? false);
   bool get isTreasurer => _currentUser?.role == 'TREASURER' || isAdmin;
 
   void _setLoading(bool value) {

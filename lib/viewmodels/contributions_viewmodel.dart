@@ -4,10 +4,10 @@ import '../data/models/contribution.dart';
 
 class ContributionsViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
-  
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
-  
+
   List<Contribution> _contributions = [];
   List<Contribution> get contributions => _contributions;
 
@@ -29,7 +29,8 @@ class ContributionsViewModel extends ChangeNotifier {
   Future<bool> initiatePayment(double amount, String phoneNumber) async {
     _setLoading(true);
     try {
-      final response = await _apiService.initiateMpesaPayment(amount, phoneNumber);
+      final response =
+          await _apiService.initiateMpesaPayment(amount, phoneNumber);
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Payment initiated successfully
         return true;
@@ -38,6 +39,34 @@ class ContributionsViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error initiating payment: $e');
       return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> approveContribution(int id) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.approveContribution(id);
+      if (response.statusCode == 200) {
+        await fetchContributions(); // Refresh list
+      }
+    } catch (e) {
+      debugPrint('Error approving contribution: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> rejectContribution(int id) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.rejectContribution(id);
+      if (response.statusCode == 200) {
+        await fetchContributions(); // Refresh list
+      }
+    } catch (e) {
+      debugPrint('Error rejecting contribution: $e');
     } finally {
       _setLoading(false);
     }

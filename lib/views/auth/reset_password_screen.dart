@@ -38,7 +38,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await _apiService.confirmPasswordReset(
+      await _apiService.confirmPasswordReset(
         uid: widget.uid,
         token: widget.token,
         newPassword: _passwordController.text.trim(),
@@ -46,16 +46,25 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
       if (!mounted) return;
 
-      final message = response.data['detail'] ?? 'Password reset successful.';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.green,
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Password Reset Successful'),
+          content: const Text(
+            'Your password has been updated. Please return to the login screen and login using your new password.',
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.popUntil(context, (route) => route.isFirst);
+              },
+              child: const Text('Return to Login'),
+            ),
+          ],
         ),
       );
-
-      Navigator.popUntil(context, (route) => route.isFirst);
     } on DioException catch (e) {
       if (!mounted) return;
 
@@ -89,8 +98,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 obscureText: true,
                 decoration: const InputDecoration(labelText: "New Password"),
                 validator: (value) {
-                  if (value == null || value.isEmpty)
+                  if (value == null || value.isEmpty) {
                     return 'Password is required';
+                  }
                   if (value.length < 8) return "Minimum 8 characters required";
 
                   bool hasLetters = RegExp(r'[a-zA-Z]').hasMatch(value);

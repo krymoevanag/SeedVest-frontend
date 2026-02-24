@@ -31,13 +31,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // We should treat fullName as read-only or split it?
     // Let's just allow editing Phone Number for now to be safe,
     // or try to split the name.
-    
+
     // Actually, let's look at the User model in Flutter.
     // It has `fullName`.
     // We can try to split it for the controller, but when saving we need to send first_name/last_name.
     // Let's just add fields for First/Last Name to the Flutter User model to make this clean.
     // But for now, to avoid breaking changes, let's just use empty strings or try to parse.
-    
+
     var names = (user?.fullName ?? '').split(' ');
     String first = names.isNotEmpty ? names.first : '';
     String last = names.length > 1 ? names.sublist(1).join(' ') : '';
@@ -70,11 +70,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () {
               setState(() {
                 if (_isEditing) {
-                   // Cancel editing, reset fields
-                   var names = (user?.fullName ?? '').split(' ');
-                   _firstNameController.text = names.isNotEmpty ? names.first : '';
-                   _lastNameController.text = names.length > 1 ? names.sublist(1).join(' ') : '';
-                   _phoneController.text = user?.phoneNumber ?? '';
+                  // Cancel editing, reset fields
+                  var names = (user?.fullName ?? '').split(' ');
+                  _firstNameController.text =
+                      names.isNotEmpty ? names.first : '';
+                  _lastNameController.text =
+                      names.length > 1 ? names.sublist(1).join(' ') : '';
+                  _phoneController.text = user?.phoneNumber ?? '';
                 }
                 _isEditing = !_isEditing;
               });
@@ -94,8 +96,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     radius: 50,
                     backgroundColor: AppColors.primary.withOpacity(0.1),
                     child: Text(
-                      user?.fullName.isNotEmpty == true 
-                          ? user!.fullName[0].toUpperCase() 
+                      user?.fullName.isNotEmpty == true
+                          ? user!.fullName[0].toUpperCase()
                           : 'U',
                       style: const TextStyle(
                         fontSize: 40,
@@ -111,8 +113,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       radius: 16,
                       backgroundColor: AppColors.background,
                       child: Icon(
-                        user?.isApproved == true ? Icons.check_circle : Icons.access_time,
-                        color: user?.isApproved == true ? AppColors.success : Colors.orange,
+                        user?.isApproved == true
+                            ? Icons.check_circle
+                            : Icons.access_time,
+                        color: user?.isApproved == true
+                            ? AppColors.success
+                            : Colors.orange,
                         size: 28,
                       ),
                     ),
@@ -128,8 +134,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(
               user?.email ?? '',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey,
-              ),
+                    color: Colors.grey,
+                  ),
             ),
             const SizedBox(height: 32),
 
@@ -169,28 +175,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
                   _buildSectionHeader('Account Details'),
                   CustomCard(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        _buildReadOnlyField('Email', user?.email ?? '', Icons.email_outlined),
+                        _buildReadOnlyField(
+                            'Email', user?.email ?? '', Icons.email_outlined),
                         const Divider(),
-                        _buildReadOnlyField('Membership No.', user?.membershipNumber ?? 'Pending', Icons.card_membership), // Need to add membershipNumber to User model in Flutter
+                        _buildReadOnlyField(
+                            'Membership No.',
+                            user?.membershipNumber ?? 'Pending',
+                            Icons
+                                .card_membership), // Need to add membershipNumber to User model in Flutter
                         const Divider(),
-                        _buildReadOnlyField('Role', user?.role ?? 'Member', Icons.security),
+                        _buildReadOnlyField(
+                            'Role', user?.role ?? 'Member', Icons.security),
                         const Divider(),
-                        _buildReadOnlyField('Status', user?.isApproved == true ? 'Active' : 'Pending Approval', Icons.info_outline),
+                        _buildReadOnlyField(
+                            'Status',
+                            user?.isApproved == true
+                                ? 'Active'
+                                : 'Pending Approval',
+                            Icons.info_outline),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             if (_isEditing)
               CustomButton(
                 text: 'Save Changes',
@@ -202,23 +218,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       'last_name': _lastNameController.text,
                       'phone_number': _phoneController.text,
                     });
-                    
+
                     if (mounted) {
                       if (success) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Profile updated successfully!')),
+                          const SnackBar(
+                              content: Text('Profile updated successfully!')),
                         );
                         setState(() => _isEditing = false);
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Failed to update profile. Please try again.'), backgroundColor: Colors.red),
+                          const SnackBar(
+                              content: Text(
+                                  'Failed to update profile. Please try again.'),
+                              backgroundColor: Colors.red),
                         );
                       }
                     }
                   }
                 },
               ),
-            
+
             if (!_isEditing) ...[
               const SizedBox(height: 24),
               CustomButton(
@@ -231,16 +251,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   await userViewModel.logout();
                   if (context.mounted) {
                     Navigator.pushNamedAndRemoveUntil(
-                      context, 
+                      context,
                       '/login',
                       (route) => false,
                     );
                   }
                 },
               ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => _showDeleteAccountDialog(context),
+                child: const Text(
+                  'Delete Account',
+                  style:
+                      TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+                ),
+              ),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be lost.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final userViewModel = context.read<UserViewModel>();
+              final success = await userViewModel.deleteAccount();
+              if (mounted) {
+                if (success) {
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/login', (route) => false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Account deleted successfully.')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content:
+                          Text('Failed to delete account. Please try again.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

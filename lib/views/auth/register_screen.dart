@@ -66,8 +66,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String? _validatePhone(String? value) {
     if (value == null || value.isEmpty) return 'Enter phone number';
-    if (!RegExp(r'^(07|01|254)\d{8}$').hasMatch(value))
+    if (!RegExp(r'^(07|01|254)\d{8}$').hasMatch(value)) {
       return 'Enter valid M-Pesa number';
+    }
     return null;
   }
 
@@ -211,8 +212,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value != _passwordController.text)
+                    if (value != _passwordController.text) {
                       return 'Passwords do not match';
+                    }
                     return null;
                   },
                 ),

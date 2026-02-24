@@ -6,16 +6,19 @@ import '../data/models/notification.dart';
 
 class GovernanceViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
-  
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
-  
+
   List<User> _pendingUsers = [];
   List<User> get pendingUsers => _pendingUsers;
-  
+
+  List<User> _approvedUsers = [];
+  List<User> get approvedUsers => _approvedUsers;
+
   List<Investment> _investments = [];
   List<Investment> get investments => _investments;
-  
+
   List<NotificationModel> _auditLogs = [];
   List<NotificationModel> get auditLogs => _auditLogs;
 
@@ -52,6 +55,58 @@ class GovernanceViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> rejectUser(int userId, String reason) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.rejectUser(userId, reason);
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _pendingUsers.removeWhere((u) => u.id == userId);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error rejecting user: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> fetchApprovedUsers() async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.getUsers(approvedOnly: true);
+      if (response.statusCode == 200) {
+        final List data = response.data;
+        _approvedUsers = data.map((e) => User.fromJson(e)).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching approved users: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> updateRole(int userId, String newRole) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.updateUserRole(userId, newRole);
+      if (response.statusCode == 200) {
+        // Refresh the list to show updated roles
+        await fetchApprovedUsers();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error updating user role: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> fetchInvestments() async {
     _setLoading(true);
     try {
@@ -77,6 +132,24 @@ class GovernanceViewModel extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error fetching audit logs: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> deleteUser(int userId) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.deleteUser(userId);
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _pendingUsers.removeWhere((u) => u.id == userId);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error deleting user: $e');
+      return false;
     } finally {
       _setLoading(false);
     }

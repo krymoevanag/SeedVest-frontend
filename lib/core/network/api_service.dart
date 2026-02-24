@@ -113,6 +113,26 @@ class ApiService {
     return response;
   }
 
+  Future<Response> getNotifications() async {
+    return await dio.get('notifications/notifications/');
+  }
+
+  Future<Response> markNotificationRead(int id) async {
+    return await dio.post('notifications/notifications/$id/mark_read/');
+  }
+
+  Future<Response> markAllAllRead() async {
+    return await dio.post('notifications/notifications/mark_all_read/');
+  }
+
+  Future<Response> sendNotification(Map<String, dynamic> data) async {
+    return await dio.post('notifications/notifications/', data: data);
+  }
+
+  Future<Response> broadcastNotification(Map<String, dynamic> data) async {
+    return await dio.post('notifications/notifications/broadcast/', data: data);
+  }
+
   Future<Response> logout() async {
     try {
       final refreshToken = await storage.read(key: 'refresh_token');
@@ -246,13 +266,40 @@ class ApiService {
     return await dio.get('accounts/pending-users/');
   }
 
+  Future<Response> getUsers({bool approvedOnly = false}) async {
+    return await dio.get('accounts/users/', queryParameters: {
+      if (approvedOnly) 'approved_only': 'true',
+    });
+  }
+
   Future<Response> approveUser(int userId) async {
+    return await dio.post('accounts/users/$userId/approve/');
+  }
+
+  Future<Response> rejectUser(int userId, String reason) async {
     return await dio
-        .patch('accounts/users/$userId/', data: {'is_approved': true});
+        .post('accounts/users/$userId/reject/', data: {'reason': reason});
   }
 
   Future<Response> updateUserRole(int userId, String role) async {
-    return await dio.patch('accounts/users/$userId/', data: {'role': role});
+    return await dio
+        .post('accounts/users/$userId/set_role/', data: {'role': role});
+  }
+
+  Future<Response> deleteUser(int userId) async {
+    return await dio.delete('accounts/users/$userId/');
+  }
+
+  Future<Response> deleteSelfAccount() async {
+    return await dio.delete('accounts/users/delete_account/');
+  }
+
+  Future<Response> approveContribution(int id) async {
+    return await dio.post('finance/contributions/$id/approve/');
+  }
+
+  Future<Response> rejectContribution(int id) async {
+    return await dio.post('finance/contributions/$id/reject/');
   }
 
   Future<Response> getAuditLogs() async {

@@ -36,7 +36,8 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.person_outline, size: 64, color: Colors.grey),
+                        Icon(Icons.person_outline,
+                            size: 64, color: Colors.grey),
                         SizedBox(height: 16),
                         Text('No pending approvals at the moment.'),
                       ],
@@ -56,17 +57,37 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                               ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 leading: CircleAvatar(
-                                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                                  backgroundColor:
+                                      AppColors.primary.withOpacity(0.1),
                                   child: Text(user.fullName.substring(0, 1)),
                                 ),
                                 title: Text(
                                   user.fullName,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
                                 ),
-                                subtitle: Text(user.email),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.info_outline),
-                                  onPressed: () {}, // Show details
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(user.email),
+                                    const SizedBox(height: 4),
+                                    _buildStatusChip(user.applicationStatus),
+                                  ],
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline,
+                                          color: Colors.red),
+                                      onPressed: () => _showDeleteConfirmDialog(
+                                          context, user.id, user.fullName),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.info_outline),
+                                      onPressed: () {}, // Show details
+                                    ),
+                                  ],
                                 ),
                               ),
                               const Divider(),
@@ -77,10 +98,14 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                                     child: CustomButton(
                                       text: 'Approve',
                                       onPressed: () async {
-                                        bool success = await viewModel.approveUser(user.id);
+                                        bool success = await viewModel
+                                            .approveUser(user.id);
                                         if (success) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text('${user.fullName} approved!')),
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    '${user.fullName} approved!')),
                                           );
                                         }
                                       },
@@ -90,15 +115,20 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: OutlinedButton(
-                                      onPressed: () {}, // TODO: Reject
+                                      onPressed: () => _showRejectDialog(
+                                          context, user.id, user.fullName),
                                       style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
-                                        side: const BorderSide(color: Colors.red),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
+                                        side:
+                                            const BorderSide(color: Colors.red),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
                                       ),
-                                      child: const Text('Reject', style: TextStyle(color: Colors.red)),
+                                      child: const Text('Reject',
+                                          style: TextStyle(color: Colors.red)),
                                     ),
                                   ),
                                 ],
@@ -109,6 +139,118 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                       );
                     },
                   ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmDialog(
+      BuildContext context, int userId, String userName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete User'),
+        content: Text(
+            'Are you sure you want to permanently delete $userName? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              bool success =
+                  await context.read<GovernanceViewModel>().deleteUser(userId);
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$userName deleted successfully.')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String status) {
+    Color color;
+    switch (status.toUpperCase()) {
+      case 'PENDING':
+        color = AppColors.warning;
+        break;
+      case 'UNDER_REVIEW':
+        color = AppColors.secondary;
+        break;
+      case 'APPROVED':
+        color = AppColors.success;
+        break;
+      case 'REJECTED':
+        color = AppColors.error;
+        break;
+      default:
+        color = Colors.grey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Text(
+        status,
+        style:
+            TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  void _showRejectDialog(BuildContext context, int userId, String userName) {
+    final TextEditingController reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Reject $userName'),
+        content: TextField(
+          controller: reasonController,
+          decoration: const InputDecoration(
+            hintText: 'Enter reason for rejection',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final reason = reasonController.text.trim();
+              if (reason.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please provide a reason.')),
+                );
+                return;
+              }
+              Navigator.pop(context);
+              bool success = await context
+                  .read<GovernanceViewModel>()
+                  .rejectUser(userId, reason);
+              if (success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$userName rejected.')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

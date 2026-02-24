@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
-import '../../viewmodels/user_viewmodel.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -21,15 +19,10 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
-    final userViewModel = Provider.of<UserViewModel>(context, listen: false);
-    final isLoggedIn = await userViewModel.tryAutoLogin();
-
+    // For now, as specifically requested, we always go to the login screen on restart
+    // instead of automatically navigating to the dashboard.
     if (mounted) {
-      if (isLoggedIn) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
+      Navigator.pushReplacementNamed(context, '/login');
     }
   }
 

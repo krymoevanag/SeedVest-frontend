@@ -1,8 +1,10 @@
 // lib/views/auth/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:provider/provider.dart';
 import '../../core/network/api_service.dart';
 import '../../core/theme/colors.dart';
+import '../../viewmodels/user_viewmodel.dart';
 import '../widgets/custom_button.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -42,7 +44,15 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        // Fetch user profile to update UserViewModel state
+        if (mounted) {
+          final userViewModel =
+              Provider.of<UserViewModel>(context, listen: false);
+          await userViewModel.fetchProfile();
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
+        }
       } else {
         throw DioException(
           requestOptions: response.requestOptions,
@@ -123,8 +133,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return "Email is required";
+                    }
                     if (!value.contains("@")) return "Invalid email address";
                     return null;
                   },
@@ -153,8 +164,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return "Password is required";
+                    }
                     return null;
                   },
                 ),

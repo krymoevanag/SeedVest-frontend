@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'core/theme/app_theme.dart';
 import 'core/cache/cache_service.dart';
 import 'views/auth/splash_screen.dart';
@@ -24,6 +25,10 @@ import 'views/governance/audit_logs_view.dart';
 import 'views/governance/role_management_view.dart';
 import 'views/profile/profile_screen.dart';
 import 'viewmodels/user_viewmodel.dart';
+import 'viewmodels/notification_viewmodel.dart';
+import 'views/notifications/notification_center_view.dart';
+import 'views/governance/admin_broadcast_view.dart';
+import 'views/governance/contribution_management_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +39,9 @@ void main() async {
   // Initialize cache service
   await CacheService.init();
 
+  // Request Notification Permissions
+  await _requestPermissions();
+
   runApp(
     MultiProvider(
       providers: [
@@ -42,10 +50,17 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ContributionsViewModel()),
         ChangeNotifierProvider(create: (_) => PenaltiesViewModel()),
         ChangeNotifierProvider(create: (_) => GovernanceViewModel()),
+        ChangeNotifierProvider(create: (_) => NotificationViewModel()),
       ],
       child: const SeedVestApp(),
     ),
   );
+}
+
+Future<void> _requestPermissions() async {
+  if (await Permission.notification.isDenied) {
+    await Permission.notification.request();
+  }
 }
 
 class SeedVestApp extends StatefulWidget {
@@ -132,6 +147,10 @@ class _SeedVestAppState extends State<SeedVestApp> {
         '/governance/audit': (context) => const AuditLogsView(),
         '/governance/roles': (context) => const RoleManagementView(),
         '/profile': (context) => const ProfileScreen(),
+        '/notifications': (context) => const NotificationCenterView(),
+        '/governance/broadcast': (context) => const AdminBroadcastView(),
+        '/governance/contributions': (context) =>
+            const ContributionManagementView(),
 
         // 🔥 Reset Password Route
         '/reset-password': (context) {
