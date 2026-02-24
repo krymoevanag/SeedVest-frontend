@@ -55,7 +55,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   icon: Icons.people_outline,
                   color: Colors.blue,
                   onTap: () =>
-                      Navigator.pushNamed(context, '/governance/approvals'),
+                      Navigator.pushNamed(context, '/governance/roles'),
                 ),
                 _StatCard(
                   title: 'Pending Approvals',
@@ -100,6 +100,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.person_add_alt_1,
+                        color: AppColors.primary),
+                    title: const Text('Register New Member'),
+                    subtitle: const Text('Manually add a member to the system'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () => Navigator.pushNamed(
+                        context, '/governance/register-member'),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.person_search,
                         color: AppColors.primary),
                     title: const Text('Review New Members'),
                     subtitle:

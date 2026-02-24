@@ -272,6 +272,10 @@ class ApiService {
     });
   }
 
+  Future<Response> adminRegisterUser(Map<String, dynamic> userData) async {
+    return await dio.post('accounts/users/admin_register/', data: userData);
+  }
+
   Future<Response> approveUser(int userId) async {
     return await dio.post('accounts/users/$userId/approve/');
   }

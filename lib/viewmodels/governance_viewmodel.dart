@@ -155,6 +155,36 @@ class GovernanceViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> registerMember({
+    required String fullName,
+    required String email,
+    required String phoneNumber,
+    required String role,
+  }) async {
+    _setLoading(true);
+    try {
+      final names = fullName.split(' ');
+      final response = await _apiService.adminRegisterUser({
+        'email': email,
+        'first_name': names.first,
+        'last_name': names.length > 1 ? names.sublist(1).join(' ') : '',
+        'phone_number': phoneNumber,
+        'role': role,
+      });
+
+      if (response.statusCode == 201) {
+        await fetchApprovedUsers(); // Refresh the list
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error registering member: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();

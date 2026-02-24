@@ -29,6 +29,7 @@ import 'viewmodels/notification_viewmodel.dart';
 import 'views/notifications/notification_center_view.dart';
 import 'views/governance/admin_broadcast_view.dart';
 import 'views/governance/contribution_management_view.dart';
+import 'views/governance/admin_member_registration_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -151,6 +152,8 @@ class _SeedVestAppState extends State<SeedVestApp> {
         '/governance/broadcast': (context) => const AdminBroadcastView(),
         '/governance/contributions': (context) =>
             const ContributionManagementView(),
+        '/governance/register-member': (context) =>
+            const AdminMemberRegistrationView(),
 
         // 🔥 Reset Password Route
         '/reset-password': (context) {

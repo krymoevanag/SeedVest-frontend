@@ -59,7 +59,9 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                                 leading: CircleAvatar(
                                   backgroundColor:
                                       AppColors.primary.withOpacity(0.1),
-                                  child: Text(user.fullName.substring(0, 1)),
+                                  child: Text(user.fullName.isNotEmpty
+                                      ? user.fullName.substring(0, 1)
+                                      : '?'),
                                 ),
                                 title: Text(
                                   user.fullName,
