@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../viewmodels/user_viewmodel.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_button.dart';
@@ -18,6 +20,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _lastNameController;
   late TextEditingController _phoneController;
   bool _isEditing = false;
+  File? _imageFile;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -53,6 +57,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _lastNameController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1000,
+      maxHeight: 1000,
+      imageQuality: 85,
+    );
+
+    if (pickedFile != null) {
+      // Check file size (1MB limit)
+      final file = File(pickedFile.path);
+      final bytes = await file.length();
+      if (bytes > 1 * 1024 * 1024) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Image size must be less than 1MB'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        _imageFile = file;
+      });
+
+      // Automatically upload
+      if (mounted) {
+        final success = await context
+            .read<UserViewModel>()
+            .updateProfilePicture(pickedFile.path);
+        if (mounted) {
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Profile picture updated!')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to upload image'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    }
   }
 
   @override
@@ -92,34 +147,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Center(
               child: Stack(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
-                    child: Text(
-                      user?.fullName.isNotEmpty == true
-                          ? user!.fullName[0].toUpperCase()
-                          : 'U',
-                      style: const TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: CircleAvatar(
+                      radius: 50,
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      backgroundImage: _imageFile != null
+                          ? FileImage(_imageFile!)
+                          : (user?.profilePicture != null
+                              ? NetworkImage(user!.profilePicture!)
+                              : null) as ImageProvider?,
+                      child:
+                          (user?.profilePicture == null && _imageFile == null)
+                              ? Text(
+                                  user?.fullName.isNotEmpty == true
+                                      ? user!.fullName[0].toUpperCase()
+                                      : 'U',
+                                  style: const TextStyle(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                )
+                              : null,
                     ),
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: AppColors.background,
-                      child: Icon(
-                        user?.isApproved == true
-                            ? Icons.check_circle
-                            : Icons.access_time,
-                        color: user?.isApproved == true
-                            ? AppColors.success
-                            : Colors.orange,
-                        size: 28,
+                    child: GestureDetector(
+                      onTap: _pickImage,
+                      child: const CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppColors.primary,
+                        child: Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                       ),
                     ),
                   ),

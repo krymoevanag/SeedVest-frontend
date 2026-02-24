@@ -143,6 +143,7 @@ class GovernanceViewModel extends ChangeNotifier {
       final response = await _apiService.deleteUser(userId);
       if (response.statusCode == 200 || response.statusCode == 204) {
         _pendingUsers.removeWhere((u) => u.id == userId);
+        _approvedUsers.removeWhere((u) => u.id == userId);
         notifyListeners();
         return true;
       }
@@ -179,6 +180,31 @@ class GovernanceViewModel extends ChangeNotifier {
       return false;
     } catch (e) {
       debugPrint('Error registering member: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> issuePenalty({
+    required int userId,
+    required double amount,
+    required String reason,
+  }) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.issuePenalty({
+        'user_id': userId,
+        'amount': amount,
+        'reason': reason,
+      });
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        await fetchApprovedUsers(); // Refresh to update balance
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error issuing penalty: $e');
       return false;
     } finally {
       _setLoading(false);

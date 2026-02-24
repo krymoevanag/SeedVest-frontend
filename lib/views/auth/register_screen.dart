@@ -304,27 +304,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               String errorMessage =
                                   'Registration failed. Please try again.';
 
-                              // Enhanced error parsing
                               if (e is DioException) {
-                                if (e.response?.data != null) {
+                                if (e.type ==
+                                        DioExceptionType.connectionTimeout ||
+                                    e.type == DioExceptionType.receiveTimeout ||
+                                    e.type == DioExceptionType.sendTimeout ||
+                                    e.type ==
+                                        DioExceptionType.connectionError) {
+                                  errorMessage =
+                                      "Unable to connect to server. Please check your internet connection.";
+                                } else if (e.response?.data != null) {
                                   final data = e.response?.data;
                                   if (data is Map) {
-                                    // Django usually returns errors as specific field keys or 'detail'
                                     if (data.containsKey('username')) {
                                       errorMessage = 'Username already exists.';
                                     } else if (data.containsKey('email')) {
                                       errorMessage =
                                           'Email already registered.';
+                                    } else if (data.containsKey('password')) {
+                                      final passwordErrors = data['password'];
+                                      if (passwordErrors is List) {
+                                        errorMessage =
+                                            passwordErrors.join('\n');
+                                      } else {
+                                        errorMessage =
+                                            passwordErrors.toString();
+                                      }
                                     } else if (data.containsKey('detail')) {
                                       errorMessage = data['detail'].toString();
                                     } else {
-                                      // Concatenate all error messages
                                       errorMessage = data.values.join('\n');
                                     }
                                   }
                                 } else {
                                   errorMessage =
-                                      'Server error: ${e.response?.statusCode}';
+                                      'Server error: ${e.response?.statusCode ?? "Unknown"}';
                                 }
                               }
 

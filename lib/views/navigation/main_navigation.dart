@@ -26,17 +26,15 @@ class _MainNavigationState extends State<MainNavigation> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final userViewModel = context.watch<UserViewModel>();
-    
+
     // Rebuild screens list based on role
     _screens = [
-      userViewModel.isAdmin 
-          ? const AdminDashboard() 
-          : const MemberDashboard(),
+      userViewModel.isAdmin ? const AdminDashboard() : const MemberDashboard(),
       const AnalyticsView(),
       const ContributionsView(),
       const InvestmentsView(),
     ];
-    
+
     _titles = [
       userViewModel.isAdmin ? 'Admin Dashboard' : 'SeedVest',
       'Financial Analytics',
@@ -70,7 +68,12 @@ class _MainNavigationState extends State<MainNavigation> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.person_outline),
+            icon: user?.profilePicture != null
+                ? CircleAvatar(
+                    radius: 12,
+                    backgroundImage: NetworkImage(user!.profilePicture!),
+                  )
+                : const Icon(Icons.person_outline),
             onPressed: () {
               Navigator.pushNamed(context, '/profile');
             },
@@ -84,9 +87,14 @@ class _MainNavigationState extends State<MainNavigation> {
             UserAccountsDrawerHeader(
               accountName: Text(user?.fullName ?? 'SeedVest Member'),
               accountEmail: Text(user?.email ?? 'member@seedvest.com'),
-              currentAccountPicture: const CircleAvatar(
+              currentAccountPicture: CircleAvatar(
                 backgroundColor: Colors.white,
-                child: Icon(Icons.person, color: AppColors.primary),
+                backgroundImage: user?.profilePicture != null
+                    ? NetworkImage(user!.profilePicture!)
+                    : null,
+                child: user?.profilePicture == null
+                    ? const Icon(Icons.person, color: AppColors.primary)
+                    : null,
               ),
               decoration: const BoxDecoration(color: AppColors.primary),
             ),
@@ -118,7 +126,9 @@ class _MainNavigationState extends State<MainNavigation> {
             if (userViewModel.isTreasurer) ...[
               const Padding(
                 padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
-                child: Text('GOVERNANCE', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                child: Text('GOVERNANCE',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, color: Colors.grey)),
               ),
               ListTile(
                 leading: const Icon(Icons.how_to_reg_outlined),
@@ -141,7 +151,9 @@ class _MainNavigationState extends State<MainNavigation> {
               const Divider(),
               const Padding(
                 padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
-                child: Text('ADMINISTRATION', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                child: Text('ADMINISTRATION',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, color: Colors.grey)),
               ),
               ListTile(
                 leading: const Icon(Icons.assignment_outlined),
@@ -169,7 +181,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 await userViewModel.logout();
                 if (context.mounted) {
                   Navigator.pushNamedAndRemoveUntil(
-                    context, 
+                    context,
                     '/login',
                     (route) => false,
                   );
@@ -191,10 +203,15 @@ class _MainNavigationState extends State<MainNavigation> {
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.analytics_outlined), label: 'Analytics'),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), label: 'Finance'),
-          BottomNavigationBarItem(icon: Icon(Icons.trending_up), label: 'Invest'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.dashboard_outlined), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.analytics_outlined), label: 'Analytics'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              label: 'Finance'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.trending_up), label: 'Invest'),
         ],
       ),
     );

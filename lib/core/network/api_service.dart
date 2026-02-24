@@ -29,6 +29,12 @@ class ApiService {
         return handler.next(options);
       },
       onError: (DioException e, handler) async {
+        // Don't attempt refresh for login or refresh tokens themselves
+        if (e.requestOptions.path.contains('accounts/login/') ||
+            e.requestOptions.path.contains('token/refresh/')) {
+          return handler.next(e);
+        }
+
         if (e.response?.statusCode == 401) {
           final refreshToken = await storage.read(key: 'refresh_token');
           if (refreshToken != null) {
@@ -90,7 +96,7 @@ class ApiService {
   // ======================
 
   Future<Response> login(String email, String password) async {
-    final response = await dio.post('token/', data: {
+    final response = await dio.post('accounts/login/', data: {
       'email': email,
       'password': password,
     });
@@ -158,6 +164,20 @@ class ApiService {
 
   Future<Response> updateProfile(Map<String, dynamic> userData) async {
     return await dio.patch('accounts/users/me/', data: userData);
+  }
+
+  Future<Response> updateProfilePicture(String filePath) async {
+    FormData formData = FormData.fromMap({
+      "profile_picture": await MultipartFile.fromFile(
+        filePath,
+        filename: filePath.split('/').last,
+      ),
+    });
+
+    return await dio.patch(
+      'accounts/users/me/',
+      data: formData,
+    );
   }
 
   // ======================

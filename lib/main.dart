@@ -22,7 +22,7 @@ import 'viewmodels/governance_viewmodel.dart';
 import 'views/governance/member_approval_view.dart';
 import 'views/governance/finance_management_view.dart';
 import 'views/governance/audit_logs_view.dart';
-import 'views/governance/role_management_view.dart';
+import 'views/governance/member_management_view.dart';
 import 'views/profile/profile_screen.dart';
 import 'viewmodels/user_viewmodel.dart';
 import 'viewmodels/notification_viewmodel.dart';
@@ -146,7 +146,7 @@ class _SeedVestAppState extends State<SeedVestApp> {
         '/governance/approvals': (context) => const MemberApprovalView(),
         '/governance/finance': (context) => const FinanceManagementView(),
         '/governance/audit': (context) => const AuditLogsView(),
-        '/governance/roles': (context) => const RoleManagementView(),
+        '/governance/roles': (context) => const MemberManagementView(),
         '/profile': (context) => const ProfileScreen(),
         '/notifications': (context) => const NotificationCenterView(),
         '/governance/broadcast': (context) => const AdminBroadcastView(),

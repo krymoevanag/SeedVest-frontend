@@ -8,6 +8,9 @@ class User {
   final bool isSuperuser;
   final String? phoneNumber;
   final String? membershipNumber;
+  final double totalSavings;
+  final double totalPenalties;
+  final String? profilePicture;
 
   User({
     required this.id,
@@ -19,6 +22,9 @@ class User {
     this.isSuperuser = false,
     this.phoneNumber,
     this.membershipNumber,
+    this.totalSavings = 0.0,
+    this.totalPenalties = 0.0,
+    this.profilePicture,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -33,6 +39,9 @@ class User {
       isSuperuser: json['is_superuser'] ?? false,
       phoneNumber: json['phone_number'],
       membershipNumber: json['membership_number'],
+      totalSavings: (json['total_savings'] ?? 0.0).toDouble(),
+      totalPenalties: (json['total_penalties'] ?? 0.0).toDouble(),
+      profilePicture: json['profile_picture'],
     );
   }
 
@@ -47,6 +56,9 @@ class User {
       'is_superuser': isSuperuser,
       'phone_number': phoneNumber,
       'membership_number': membershipNumber,
+      'total_savings': totalSavings,
+      'total_penalties': totalPenalties,
+      'profile_picture': profilePicture,
     };
   }
 }

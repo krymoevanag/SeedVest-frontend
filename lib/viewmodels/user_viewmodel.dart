@@ -45,6 +45,24 @@ class UserViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateProfilePicture(String filePath) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.updateProfilePicture(filePath);
+      if (response.statusCode == 200) {
+        _currentUser = User.fromJson(response.data);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error uploading profile picture: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<bool> tryAutoLogin() async {
     _setLoading(true);
     try {

@@ -48,9 +48,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               mainAxisSpacing: 16,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 1.1,
               children: [
                 _StatCard(
-                  title: 'Total Users',
+                  title: 'All Members',
                   value: stats['total_users']?.toString() ?? '-',
                   icon: Icons.people_outline,
                   color: Colors.blue,
@@ -66,21 +67,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       Navigator.pushNamed(context, '/governance/approvals'),
                 ),
                 _StatCard(
-                  title: 'Total Collected',
-                  value:
-                      currencyFormat.format(stats['total_contributions'] ?? 0),
-                  icon: Icons.account_balance_wallet,
+                  title: 'Total Savings',
+                  value: currencyFormat.format(stats['total_savings'] ?? 0),
+                  icon: Icons.savings_outlined,
                   color: Colors.green,
                   isCurrency: true,
                   onTap: () =>
                       Navigator.pushNamed(context, '/governance/contributions'),
                 ),
                 _StatCard(
+                  title: 'Total Penalties',
+                  value: currencyFormat.format(stats['total_penalties'] ?? 0),
+                  icon: Icons.gavel,
+                  color: Colors.redAccent,
+                  isCurrency: true,
+                  onTap: () => Navigator.pushNamed(context, '/penalties'),
+                ),
+                _StatCard(
+                  title: 'Grand Total',
+                  value: currencyFormat.format(stats['grand_total'] ?? 0),
+                  icon: Icons.account_balance,
+                  color: AppColors.primary,
+                  isCurrency: true,
+                ),
+                _StatCard(
                   title: 'Pending Payments',
                   value:
                       stats['pending_contributions_count']?.toString() ?? '-',
                   icon: Icons.pending_actions,
-                  color: Colors.redAccent,
+                  color: Colors.amber,
                   onTap: () =>
                       Navigator.pushNamed(context, '/governance/contributions'),
                 ),

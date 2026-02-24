@@ -62,14 +62,34 @@ class _LoginScreenState extends State<LoginScreen> {
     } on DioException catch (e) {
       if (!mounted) return;
 
-      String errorMessage = "Login failed. Please check your credentials.";
+      String errorMessage = "An error occurred. Please try again.";
 
-      if (e.response != null && e.response?.data != null) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.connectionError) {
+        errorMessage =
+            "Unable to connect to server. Please check your internet connection.";
+      } else if (e.response != null) {
+        final status = e.response?.statusCode;
         final data = e.response?.data;
-        if (data is Map && data.containsKey("detail")) {
+
+        if (status == 401) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else if (status == 403) {
+          if (data is Map && data.containsKey("error")) {
+            errorMessage = data["error"].toString();
+          } else {
+            errorMessage = "Account access denied. Please contact support.";
+          }
+        } else if (status! >= 500) {
+          errorMessage = "Server error. Please try again later.";
+        } else if (data is Map && data.containsKey("detail")) {
           errorMessage = data["detail"].toString();
         } else if (data is Map && data.containsKey("non_field_errors")) {
           errorMessage = (data["non_field_errors"] as List).first.toString();
+        } else if (data is Map && data.containsKey("error")) {
+          errorMessage = data["error"].toString();
         }
       }
 
@@ -77,6 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(
           content: Text(errorMessage),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
     } catch (e) {
