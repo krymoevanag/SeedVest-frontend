@@ -174,6 +174,31 @@ class _MainNavigationState extends State<MainNavigation> {
             ],
             const Divider(),
             ListTile(
+              leading: const Icon(Icons.help_outline),
+              title: const Text('Help & Support'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/help');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.article_outlined),
+              title: const Text('Terms & Conditions'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/terms');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('About Us'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/about');
+              },
+            ),
+            const Divider(),
+            ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Logout', style: TextStyle(color: Colors.red)),
               onTap: () async {

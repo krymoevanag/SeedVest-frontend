@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../viewmodels/user_viewmodel.dart';
+import '../../core/network/api_service.dart';
+import '../../core/security/biometric_service.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_card.dart';
@@ -22,6 +24,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isEditing = false;
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
+  final ApiService _apiService = ApiService();
+  final BiometricService _biometricService = BiometricService();
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  String _biometricLabel = 'Biometrics';
 
   @override
   void initState() {
@@ -49,6 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _firstNameController = TextEditingController(text: first);
     _lastNameController = TextEditingController(text: last);
     _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
+    _loadBiometricSettings();
   }
 
   @override
@@ -57,6 +65,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _lastNameController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadBiometricSettings() async {
+    final canAuthenticate = await _biometricService.canAuthenticate();
+    final enabled = await _apiService.isBiometricEnabled();
+    final label = await _biometricService.biometricLabel();
+
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = canAuthenticate;
+      _biometricEnabled = enabled;
+      _biometricLabel = label;
+    });
+  }
+
+  Future<void> _toggleBiometric(bool enabled) async {
+    if (enabled) {
+      final authenticated = await _biometricService.authenticate(
+        reason: 'Authenticate to enable biometric login',
+      );
+      if (!authenticated) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Biometric setup cancelled.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    await _apiService.setBiometricEnabled(enabled);
+    if (!mounted) return;
+    setState(() => _biometricEnabled = enabled);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          enabled
+              ? 'Biometric login enabled.'
+              : 'Biometric login disabled.',
+        ),
+      ),
+    );
   }
 
   Future<void> _pickImage() async {
@@ -151,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: _pickImage,
                     child: CircleAvatar(
                       radius: 50,
-                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                       backgroundImage: _imageFile != null
                           ? FileImage(_imageFile!)
                           : (user?.profilePicture != null
@@ -266,6 +320,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
+                  if (_biometricAvailable) ...[
+                    const SizedBox(height: 24),
+                    _buildSectionHeader('Security'),
+                    CustomCard(
+                      padding: const EdgeInsets.all(16),
+                      child: SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Enable $_biometricLabel Login'),
+                        subtitle: const Text(
+                          'Use biometrics for faster sign in on this device',
+                        ),
+                        value: _biometricEnabled,
+                        onChanged: _toggleBiometric,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  _buildSectionHeader('Support & Legal'),
+                  CustomCard(
+                    padding: const EdgeInsets.all(0),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.help_outline),
+                          title: const Text('Help & Support'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.pushNamed(context, '/help'),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.article_outlined),
+                          title: const Text('Terms & Conditions'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.pushNamed(context, '/terms'),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.info_outline),
+                          title: const Text('About Us'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.pushNamed(context, '/about'),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -284,21 +383,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       'phone_number': _phoneController.text,
                     });
 
-                    if (mounted) {
-                      if (success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Profile updated successfully!')),
-                        );
-                        setState(() => _isEditing = false);
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Failed to update profile. Please try again.'),
-                              backgroundColor: Colors.red),
-                        );
-                      }
+                    if (!context.mounted) return;
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Profile updated successfully!')),
+                      );
+                      setState(() => _isEditing = false);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                'Failed to update profile. Please try again.'),
+                            backgroundColor: Colors.red),
+                      );
                     }
                   }
                 },
@@ -325,7 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: () => _showDeleteAccountDialog(context),
+                onPressed: _showDeleteAccountDialog,
                 child: const Text(
                   'Delete Account',
                   style:
@@ -339,41 +437,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showDeleteAccountDialog(BuildContext context) {
+  void _showDeleteAccountDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Account'),
         content: const Text(
           'Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be lost.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               final userViewModel = context.read<UserViewModel>();
               final success = await userViewModel.deleteAccount();
-              if (mounted) {
-                if (success) {
-                  Navigator.pushNamedAndRemoveUntil(
-                      context, '/login', (route) => false);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Account deleted successfully.')),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content:
-                          Text('Failed to delete account. Please try again.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
+              if (!mounted) return;
+              if (success) {
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/login', (route) => false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Account deleted successfully.')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to delete account. Please try again.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

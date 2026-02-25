@@ -30,6 +30,9 @@ import 'views/notifications/notification_center_view.dart';
 import 'views/governance/admin_broadcast_view.dart';
 import 'views/governance/contribution_management_view.dart';
 import 'views/governance/admin_member_registration_view.dart';
+import 'views/support/help_screen.dart';
+import 'views/support/terms_conditions_screen.dart';
+import 'views/support/about_us_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -152,6 +155,10 @@ class _SeedVestAppState extends State<SeedVestApp> {
         '/dashboard': (context) => const MainNavigation(),
         '/penalties': (context) => const PenaltiesView(),
         '/governance/approvals': (context) => const MemberApprovalView(),
+        '/governance/approvals/': (context) => const MemberApprovalView(),
+        '/governance/pending-approvals': (context) =>
+            const MemberApprovalView(),
+        '/pending-approvals': (context) => const MemberApprovalView(),
         '/governance/finance': (context) => const FinanceManagementView(),
         '/governance/audit': (context) => const AuditLogsView(),
         '/governance/roles': (context) => const MemberManagementView(),
@@ -162,6 +169,9 @@ class _SeedVestAppState extends State<SeedVestApp> {
             const ContributionManagementView(),
         '/governance/register-member': (context) =>
             const AdminMemberRegistrationView(),
+        '/help': (context) => const HelpScreen(),
+        '/terms': (context) => const TermsConditionsScreen(),
+        '/about': (context) => const AboutUsScreen(),
 
         // 🔥 Reset Password Route
         '/reset-password': (context) {
@@ -176,3 +186,4 @@ class _SeedVestAppState extends State<SeedVestApp> {
     );
   }
 }
+

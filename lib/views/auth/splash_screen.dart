@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/network/api_service.dart';
+import '../../core/security/biometric_service.dart';
 import '../../core/theme/colors.dart';
+import '../../viewmodels/user_viewmodel.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -9,6 +13,9 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  final ApiService _apiService = ApiService();
+  final BiometricService _biometricService = BiometricService();
+
   @override
   void initState() {
     super.initState();
@@ -19,8 +26,36 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
-    // For now, as specifically requested, we always go to the login screen on restart
-    // instead of automatically navigating to the dashboard.
+    final biometricEnabled = await _apiService.isBiometricEnabled();
+    final hasRefreshToken = await _apiService.hasRefreshToken();
+    final canAuthenticate = await _biometricService.canAuthenticate();
+
+    if (biometricEnabled && hasRefreshToken && canAuthenticate) {
+      final authenticated = await _biometricService.authenticate(
+        reason: 'Authenticate to sign in to SeedVest',
+      );
+
+      if (authenticated) {
+        final refreshed = await _apiService.refreshAccessToken();
+        if (refreshed) {
+          if (!mounted) return;
+          final userViewModel = Provider.of<UserViewModel>(
+            context,
+            listen: false,
+          );
+          await userViewModel.fetchProfile();
+
+          if (!mounted) return;
+          if (userViewModel.currentUser != null) {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+            return;
+          }
+        } else {
+          await _apiService.clearSessionAndBiometric();
+        }
+      }
+    }
+
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/login');
     }

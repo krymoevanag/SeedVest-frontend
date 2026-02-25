@@ -13,6 +13,19 @@ class NotificationCenterView extends StatefulWidget {
 }
 
 class _NotificationCenterViewState extends State<NotificationCenterView> {
+  String? _normalizeRoute(String? rawLink) {
+    if (rawLink == null || rawLink.isEmpty) return null;
+
+    final link = rawLink.trim();
+    const aliases = {
+      '/governance/approvals/': '/governance/approvals',
+      '/governance/pending-approvals': '/governance/approvals',
+      '/pending-approvals': '/governance/approvals',
+    };
+
+    return aliases[link] ?? link;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -68,8 +81,9 @@ class _NotificationCenterViewState extends State<NotificationCenterView> {
                             if (!notif.isRead) {
                               viewModel.markAsRead(notif.id);
                             }
-                            if (notif.link != null) {
-                              Navigator.pushNamed(context, notif.link!);
+                            final route = _normalizeRoute(notif.link);
+                            if (route != null) {
+                              Navigator.pushNamed(context, route);
                             }
                           },
                           child: Container(

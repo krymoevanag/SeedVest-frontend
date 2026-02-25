@@ -29,7 +29,7 @@ class DashboardViewModel extends ChangeNotifier {
         
         // Calculate total savings from contributions
         _totalSavings = _recentContributions
-            .where((c) => c.status == 'SUCCESS')
+            .where((c) => c.status == 'PAID' || c.status == 'LATE')
             .fold(0.0, (sum, item) => sum + item.amount);
       }
     } catch (e) {

@@ -6,6 +6,8 @@ import '../cache/cache_service.dart';
 import 'connectivity_service.dart';
 
 class ApiService {
+  static const String _biometricEnabledKey = 'biometric_enabled';
+
   final Dio dio = Dio();
   final FlutterSecureStorage storage = const FlutterSecureStorage();
   final CacheService _cacheService = CacheService();
@@ -117,6 +119,48 @@ class ApiService {
     }
 
     return response;
+  }
+
+  Future<bool> isBiometricEnabled() async {
+    final value = await storage.read(key: _biometricEnabledKey);
+    return value == 'true';
+  }
+
+  Future<void> setBiometricEnabled(bool enabled) async {
+    if (enabled) {
+      await storage.write(key: _biometricEnabledKey, value: 'true');
+    } else {
+      await storage.delete(key: _biometricEnabledKey);
+    }
+  }
+
+  Future<bool> hasRefreshToken() async {
+    final refreshToken = await storage.read(key: 'refresh_token');
+    return refreshToken != null && refreshToken.isNotEmpty;
+  }
+
+  Future<bool> refreshAccessToken() async {
+    final refreshToken = await storage.read(key: 'refresh_token');
+    if (refreshToken == null || refreshToken.isEmpty) return false;
+
+    try {
+      final response = await dio.post('token/refresh/', data: {
+        'refresh': refreshToken,
+      });
+
+      if (response.statusCode == 200 && response.data['access'] != null) {
+        await storage.write(key: 'access_token', value: response.data['access']);
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> clearSessionAndBiometric() async {
+    await storage.deleteAll();
+    await _cacheService.clearCache();
   }
 
   Future<Response> getNotifications() async {

@@ -60,7 +60,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
                 ),
                 CircleAvatar(
                   radius: 24,
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                   backgroundImage: user?.profilePicture != null
                       ? NetworkImage(user!.profilePicture!)
                       : null,
@@ -146,7 +146,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
+                            color: AppColors.primary.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -186,7 +186,8 @@ class _MemberDashboardState extends State<MemberDashboard> {
                               contribution.status,
                               style: TextStyle(
                                 fontSize: 10,
-                                color: contribution.status == 'SUCCESS'
+                                color: (contribution.status == 'PAID' ||
+                                        contribution.status == 'LATE')
                                     ? Colors.green
                                     : Colors.orange,
                               ),

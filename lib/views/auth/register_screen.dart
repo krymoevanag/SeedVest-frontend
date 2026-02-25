@@ -25,6 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   bool _isFormValid = false;
+  bool _termsAccepted = false;
 
   @override
   void initState() {
@@ -38,7 +39,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _validateForm() {
-    bool isValid = _formKey.currentState?.validate() ?? false;
+    bool isValid = (_formKey.currentState?.validate() ?? false) && _termsAccepted;
     if (isValid != _isFormValid) {
       setState(() {
         _isFormValid = isValid;
@@ -238,15 +239,50 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _termsAccepted,
+                      onChanged: (value) {
+                        setState(() {
+                          _termsAccepted = value ?? false;
+                        });
+                        _validateForm();
+                      },
+                    ),
+                    Expanded(
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          const Text('I agree to the '),
+                          GestureDetector(
+                            onTap: () => Navigator.pushNamed(context, '/terms'),
+                            child: const Text(
+                              'Terms & Conditions',
+                              style: TextStyle(
+                                color: AppColors.secondary,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 40),
 
                 // Primary Button
                 CustomButton(
                   text: 'CREATE ACCOUNT',
                   isLoading: _isLoading,
-                  onPressed: (_isFormValid && !_isLoading)
+                        onPressed: (_isFormValid && !_isLoading)
                       ? () async {
                           setState(() => _isLoading = true);
+                          final messenger = ScaffoldMessenger.of(context);
 
                           try {
                             // Check connectivity first
@@ -254,17 +290,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 await _apiService.checkConnectivity();
 
                             if (!isConnected) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Cannot connect to server. Please check your internet connection and try again.',
-                                    ),
-                                    backgroundColor: Colors.red,
-                                    duration: Duration(seconds: 4),
+                              if (!mounted) return;
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Cannot connect to server. Please check your internet connection and try again.',
                                   ),
-                                );
-                              }
+                                  backgroundColor: Colors.red,
+                                  duration: Duration(seconds: 4),
+                                ),
+                              );
                               return;
                             }
 
@@ -280,76 +315,72 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             await _apiService.register({
                               'first_name': firstName,
                               'last_name': lastName,
-                              'username': _usernameController.text,
                               'email': _emailController.text,
                               'phone_number': _phoneController.text,
                               'password': _passwordController.text,
+                              'terms_accepted': _termsAccepted,
                               'password2': _confirmPasswordController
                                   .text, // Added password2 which is required by serializer
                             });
 
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Registration successful! Awaiting admin approval.'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                              Navigator.pushReplacementNamed(
-                                  context, '/activation-waiting');
-                            }
+                            if (!mounted) return;
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Registration successful! Awaiting admin approval.'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            Navigator.pushReplacementNamed(
+                                this.context, '/activation-waiting');
                           } catch (e) {
-                            if (mounted) {
-                              String errorMessage =
-                                  'Registration failed. Please try again.';
+                            if (!mounted) return;
+                            String errorMessage =
+                                'Registration failed. Please try again.';
 
-                              if (e is DioException) {
-                                if (e.type ==
-                                        DioExceptionType.connectionTimeout ||
-                                    e.type == DioExceptionType.receiveTimeout ||
-                                    e.type == DioExceptionType.sendTimeout ||
-                                    e.type ==
-                                        DioExceptionType.connectionError) {
-                                  errorMessage =
-                                      "Unable to connect to server. Please check your internet connection.";
-                                } else if (e.response?.data != null) {
-                                  final data = e.response?.data;
-                                  if (data is Map) {
-                                    if (data.containsKey('username')) {
-                                      errorMessage = 'Username already exists.';
-                                    } else if (data.containsKey('email')) {
-                                      errorMessage =
-                                          'Email already registered.';
-                                    } else if (data.containsKey('password')) {
-                                      final passwordErrors = data['password'];
-                                      if (passwordErrors is List) {
-                                        errorMessage =
-                                            passwordErrors.join('\n');
-                                      } else {
-                                        errorMessage =
-                                            passwordErrors.toString();
-                                      }
-                                    } else if (data.containsKey('detail')) {
-                                      errorMessage = data['detail'].toString();
+                            if (e is DioException) {
+                              if (e.type == DioExceptionType.connectionTimeout ||
+                                  e.type == DioExceptionType.receiveTimeout ||
+                                  e.type == DioExceptionType.sendTimeout ||
+                                  e.type == DioExceptionType.connectionError) {
+                                errorMessage =
+                                    "Unable to connect to server. Please check your internet connection.";
+                              } else if (e.response?.data != null) {
+                                final data = e.response?.data;
+                                if (data is Map) {
+                                  if (data.containsKey('username')) {
+                                    errorMessage = 'Username already exists.';
+                                  } else if (data.containsKey('email')) {
+                                    errorMessage = 'Email already registered.';
+                                  } else if (data.containsKey('password')) {
+                                    final passwordErrors = data['password'];
+                                    if (passwordErrors is List) {
+                                      errorMessage = passwordErrors.join('\n');
                                     } else {
-                                      errorMessage = data.values.join('\n');
+                                      errorMessage = passwordErrors.toString();
                                     }
+                                  } else if (data.containsKey('terms_accepted')) {
+                                    errorMessage =
+                                        'You must accept the Terms & Conditions.';
+                                  } else if (data.containsKey('detail')) {
+                                    errorMessage = data['detail'].toString();
+                                  } else {
+                                    errorMessage = data.values.join('\n');
                                   }
-                                } else {
-                                  errorMessage =
-                                      'Server error: ${e.response?.statusCode ?? "Unknown"}';
                                 }
+                              } else {
+                                errorMessage =
+                                    'Server error: ${e.response?.statusCode ?? "Unknown"}';
                               }
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(errorMessage),
-                                  backgroundColor: Colors.red,
-                                  duration: const Duration(seconds: 5),
-                                ),
-                              );
                             }
+
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(errorMessage),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 5),
+                              ),
+                            );
                           } finally {
                             if (mounted) {
                               setState(() => _isLoading = false);
