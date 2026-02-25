@@ -175,6 +175,15 @@ class ApiService {
     return await dio.get('notifications/notifications/');
   }
 
+  Future<Response> getNotificationPreferences() async {
+    return await dio.get('notifications/notifications/preferences/');
+  }
+
+  Future<Response> updateNotificationPreferences(
+      Map<String, dynamic> data) async {
+    return await dio.patch('notifications/notifications/preferences/', data: data);
+  }
+
   Future<Response> markNotificationRead(int id) async {
     return await dio.post('notifications/notifications/$id/mark_read/');
   }
@@ -303,6 +312,11 @@ class ApiService {
       }
       rethrow;
     }
+  }
+
+  Future<Response> proposeManualContribution(
+      Map<String, dynamic> proposalData) async {
+    return await dio.post('finance/contributions/', data: proposalData);
   }
 
   Future<Response> getPenalties() async {

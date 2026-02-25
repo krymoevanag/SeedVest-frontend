@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
+import '../../viewmodels/notification_viewmodel.dart';
 import '../../viewmodels/user_viewmodel.dart';
 import '../dashboard/member_dashboard.dart';
 import '../finance/contributions_view.dart';
@@ -21,6 +22,14 @@ class _MainNavigationState extends State<MainNavigation> {
   List<Widget> _screens = []; // Initialize empty
 
   List<String> _titles = [];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<NotificationViewModel>().refreshNotificationsState();
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -49,23 +58,104 @@ class _MainNavigationState extends State<MainNavigation> {
     });
   }
 
+  Future<void> _handleNotificationMenuSelection(
+    BuildContext context,
+    String value,
+  ) async {
+    final notificationViewModel = context.read<NotificationViewModel>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (value == 'open') {
+      await Navigator.pushNamed(context, '/notifications');
+      if (!mounted) return;
+      await notificationViewModel.refreshNotificationsState();
+      return;
+    }
+
+    if (value == 'toggle_internal') {
+      final target = !notificationViewModel.muteInternalMessages;
+      final success = await notificationViewModel.setMuteInternalMessages(target);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? (target
+                    ? 'Internal messages silenced.'
+                    : 'Internal messages enabled.')
+                : 'Failed to update notification preference.',
+          ),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final userViewModel = context.watch<UserViewModel>();
+    final notificationViewModel = context.watch<NotificationViewModel>();
     final user = userViewModel.currentUser;
+    final unreadCount = notificationViewModel.unreadCountForBar;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No new notifications')),
-              );
-            },
+          PopupMenuButton<String>(
+            tooltip: 'Notifications',
+            onSelected: (value) => _handleNotificationMenuSelection(context, value),
+            itemBuilder: (context) => [
+              const PopupMenuItem<String>(
+                value: 'open',
+                child: Text('Open notifications'),
+              ),
+              if (!userViewModel.isAdmin)
+                PopupMenuItem<String>(
+                  value: 'toggle_internal',
+                  child: Text(
+                    notificationViewModel.muteInternalMessages
+                        ? 'Enable internal messages'
+                        : 'Silence internal messages',
+                  ),
+                ),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.notifications_none),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: -6,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.rectangle,
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 18),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
           IconButton(
             icon: user?.profilePicture != null

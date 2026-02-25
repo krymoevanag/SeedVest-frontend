@@ -44,6 +44,48 @@ class ContributionsViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> proposeManualContribution({
+    int? groupId,
+    required double amount,
+    DateTime? reportedPaidDate,
+    String? paymentMethod,
+    String? reference,
+    String? note,
+  }) async {
+    _setLoading(true);
+    try {
+      final payload = <String, dynamic>{
+        'amount': amount,
+        'reported_paid_date':
+            (reportedPaidDate ?? DateTime.now()).toIso8601String().split('T')[0],
+      };
+      if (groupId != null) {
+        payload['group_id'] = groupId;
+      }
+      if (paymentMethod != null && paymentMethod.isNotEmpty) {
+        payload['reported_payment_method'] = paymentMethod;
+      }
+      if (reference != null && reference.trim().isNotEmpty) {
+        payload['reported_reference'] = reference.trim();
+      }
+      if (note != null && note.trim().isNotEmpty) {
+        payload['reported_note'] = note.trim();
+      }
+
+      final response = await _apiService.proposeManualContribution(payload);
+      if (response.statusCode == 201) {
+        await fetchContributions();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error submitting manual contribution proposal: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> approveContribution(int id) async {
     _setLoading(true);
     try {

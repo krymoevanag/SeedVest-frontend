@@ -16,6 +16,19 @@ class ContributionManagementView extends StatefulWidget {
 
 class _ContributionManagementViewState
     extends State<ContributionManagementView> {
+  String _formatPaymentMethod(String? method) {
+    if (method == null || method.isEmpty) {
+      return 'N/A';
+    }
+    return method
+        .toLowerCase()
+        .split('_')
+        .map((part) => part.isEmpty
+            ? part
+            : '${part[0].toUpperCase()}${part.substring(1)}')
+        .join(' ');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -98,6 +111,59 @@ class _ContributionManagementViewState
                                   style: TextStyle(
                                       color: Colors.grey[600], fontSize: 13),
                                 ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Group ID: ${contribution.groupId}',
+                                  style: TextStyle(
+                                      color: Colors.grey[600], fontSize: 12),
+                                ),
+                                if (contribution.isManualEntry) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: const Text(
+                                      'Manual proposal',
+                                      style: TextStyle(
+                                        color: Colors.blue,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Method: ${_formatPaymentMethod(contribution.reportedPaymentMethod)}',
+                                    style: TextStyle(
+                                        color: Colors.grey[700], fontSize: 13),
+                                  ),
+                                  if (contribution.reportedPaidDate != null)
+                                    Text(
+                                      'Reported paid date: ${DateFormat('dd MMM yyyy').format(contribution.reportedPaidDate!)}',
+                                      style: TextStyle(
+                                          color: Colors.grey[700], fontSize: 13),
+                                    ),
+                                  if ((contribution.reportedReference ?? '')
+                                      .isNotEmpty)
+                                    Text(
+                                      'Reference: ${contribution.reportedReference}',
+                                      style: TextStyle(
+                                          color: Colors.grey[700], fontSize: 13),
+                                    ),
+                                  if ((contribution.reportedNote ?? '').isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Note: ${contribution.reportedNote}',
+                                        style: TextStyle(
+                                            color: Colors.grey[700], fontSize: 13),
+                                      ),
+                                    ),
+                                ],
                                 if (contribution.transactionId != null) ...[
                                   const SizedBox(height: 4),
                                   Text(
