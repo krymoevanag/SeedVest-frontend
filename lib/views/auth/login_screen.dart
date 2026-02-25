@@ -7,6 +7,7 @@ import '../../core/security/biometric_service.dart';
 import '../../core/theme/colors.dart';
 import '../../viewmodels/user_viewmodel.dart';
 import '../widgets/custom_button.dart';
+import '../widgets/seedvest_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -247,7 +248,11 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 60),
+                const SizedBox(height: 20),
+                const Center(
+                  child: SeedVestLogo(size: 130),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   "Welcome Back!",
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(

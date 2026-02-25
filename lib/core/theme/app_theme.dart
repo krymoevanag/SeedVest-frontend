@@ -4,6 +4,8 @@ import 'colors.dart';
 
 class AppTheme {
   static ThemeData get lightTheme {
+    final baseTextTheme = GoogleFonts.plusJakartaSansTextTheme();
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
@@ -17,36 +19,68 @@ class AppTheme {
         onSecondary: Colors.white,
       ),
       scaffoldBackgroundColor: AppColors.background,
-      textTheme: GoogleFonts.interTextTheme().copyWith(
-        displayLarge: GoogleFonts.poppins(
+      textTheme: baseTextTheme.copyWith(
+        displayLarge: GoogleFonts.sora(
           fontSize: 32,
-          fontWeight: FontWeight.bold,
-          color: AppColors.secondary, // Midnight Blue for emphasis
+          fontWeight: FontWeight.w700,
+          color: AppColors.secondary,
         ),
-        headlineMedium: GoogleFonts.poppins(
+        displayMedium: GoogleFonts.sora(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          color: AppColors.secondary,
+        ),
+        headlineLarge: GoogleFonts.sora(
+          fontSize: 26,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
+        headlineMedium: GoogleFonts.sora(
           fontSize: 24,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
         ),
-        titleLarge: GoogleFonts.poppins(
+        titleLarge: GoogleFonts.sora(
           fontSize: 20,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
         ),
-        bodyLarge: GoogleFonts.inter(
+        titleMedium: GoogleFonts.sora(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+        bodyLarge: GoogleFonts.plusJakartaSans(
           fontSize: 16,
+          height: 1.5,
           color: AppColors.textPrimary,
         ),
-        bodyMedium: GoogleFonts.inter(
+        bodyMedium: GoogleFonts.plusJakartaSans(
           fontSize: 14,
+          height: 1.45,
           color: AppColors.textSecondary,
         ),
+        bodySmall: GoogleFonts.plusJakartaSans(
+          fontSize: 13,
+          height: 1.4,
+          color: AppColors.textSecondary,
+        ),
+        labelLarge: GoogleFonts.plusJakartaSans(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: AppColors.secondary,
         elevation: 0,
         centerTitle: true,
+        titleTextStyle: GoogleFonts.sora(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: AppColors.secondary,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -54,11 +88,11 @@ class AppTheme {
           foregroundColor: Colors.white,
           minimumSize: const Size(double.infinity, 54),
           elevation: 2,
-          shadowColor: AppColors.primary.withOpacity(0.3),
+          shadowColor: AppColors.primary.withValues(alpha: 0.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: GoogleFonts.poppins(
+          textStyle: GoogleFonts.sora(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -67,7 +101,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 4,
-        shadowColor: AppColors.secondary.withOpacity(0.05),
+        shadowColor: AppColors.secondary.withValues(alpha: 0.05),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
@@ -84,7 +118,8 @@ class AppTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.withOpacity(0.1), width: 1),
+          borderSide:
+              BorderSide(color: Colors.grey.withValues(alpha: 0.1), width: 1),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

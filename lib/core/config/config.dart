@@ -3,7 +3,17 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 /// Centralized application configuration
 class AppConfig {
   /// API base URL from environment
-  static String get apiUrl => dotenv.env['API_URL'] ?? 'http://10.0.2.2:8000/api';
+  static String get apiUrl {
+    final raw = dotenv.env['API_URL'];
+    final cleaned = raw
+        ?.trim()
+        .replaceAll('"', '')
+        .replaceAll("'", '');
+    final base = (cleaned == null || cleaned.isEmpty)
+        ? 'http://10.0.2.2:8000/api/'
+        : cleaned;
+    return base.endsWith('/') ? base : '$base/';
+  }
   
   /// Current environment (development, staging, production)
   static String get environment => dotenv.env['ENVIRONMENT'] ?? 'development';

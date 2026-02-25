@@ -4,6 +4,7 @@ import '../../core/network/api_service.dart';
 import '../../core/security/biometric_service.dart';
 import '../../core/theme/colors.dart';
 import '../../viewmodels/user_viewmodel.dart';
+import '../widgets/seedvest_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -76,20 +77,11 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.trending_up,
-                size: 100,
-                color: AppColors.accent,
+              const SeedVestLogo(
+                size: 190,
+                wordmarkColor: Colors.white,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'SEEDVEST',
-                style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      color: Colors.white,
-                      letterSpacing: 4,
-                    ),
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
                 'Financial Governance & Growth',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(

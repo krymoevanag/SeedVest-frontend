@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../core/network/api_service.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_button.dart';
+import '../widgets/seedvest_logo.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -103,10 +104,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // SeedVest Logo
-                const Icon(
-                  Icons.account_balance_wallet,
-                  size: 64,
-                  color: AppColors.primary,
+                const SeedVestLogo(
+                  size: 120,
                 ),
                 const SizedBox(height: 16),
                 Text(

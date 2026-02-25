@@ -25,8 +25,8 @@ class ApiService {
 
   ApiService() {
     dio.options.baseUrl = AppConfig.apiUrl;
-    dio.options.connectTimeout = const Duration(seconds: 10);
-    dio.options.receiveTimeout = const Duration(seconds: 10);
+    dio.options.connectTimeout = const Duration(seconds: 30);
+    dio.options.receiveTimeout = const Duration(seconds: 30);
 
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
