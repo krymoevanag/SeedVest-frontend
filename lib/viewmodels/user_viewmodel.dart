@@ -14,7 +14,7 @@ class UserViewModel extends ChangeNotifier {
   Future<void> fetchProfile() async {
     _setLoading(true);
     try {
-      final response = await _apiService.dio.get('/accounts/users/me/');
+      final response = await _apiService.dio.get('accounts/users/me/');
       if (response.statusCode == 200) {
         _currentUser = User.fromJson(response.data);
       }

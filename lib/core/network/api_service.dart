@@ -329,4 +329,12 @@ class ApiService {
   Future<Response> getAuditLogs() async {
     return await dio.get('notifications/notifications/');
   }
+
+  Future<Response> adminAddContribution(Map<String, dynamic> data) async {
+    return await dio.post('finance/admin-add-contribution/', data: data);
+  }
+
+  Future<Response> getGroups() async {
+    return await dio.get('groups/groups/');
+  }
 }

@@ -72,6 +72,36 @@ class ContributionsViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> adminAddContribution({
+    required int userId,
+    required int groupId,
+    required double amount,
+    String? paidDate,
+  }) async {
+    _setLoading(true);
+    try {
+      final data = <String, dynamic>{
+        'user_id': userId,
+        'group_id': groupId,
+        'amount': amount,
+      };
+      if (paidDate != null) {
+        data['paid_date'] = paidDate;
+      }
+      final response = await _apiService.adminAddContribution(data);
+      if (response.statusCode == 201) {
+        await fetchContributions();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error adding contribution: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();

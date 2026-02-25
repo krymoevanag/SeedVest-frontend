@@ -78,7 +78,16 @@ class _LoginScreenState extends State<LoginScreen> {
           errorMessage = "Invalid email or password. Please try again.";
         } else if (status == 403) {
           if (data is Map && data.containsKey("error")) {
-            errorMessage = data["error"].toString();
+            final backendError = data["error"].toString();
+            if (backendError.toLowerCase().contains("not activated")) {
+              errorMessage =
+                  "Your account is not activated yet. Please use your activation email first.";
+            } else if (backendError.toLowerCase().contains("account status")) {
+              errorMessage =
+                  "$backendError\nIf you just completed activation, wait for admin approval.";
+            } else {
+              errorMessage = backendError;
+            }
           } else {
             errorMessage = "Account access denied. Please contact support.";
           }
@@ -90,6 +99,8 @@ class _LoginScreenState extends State<LoginScreen> {
           errorMessage = (data["non_field_errors"] as List).first.toString();
         } else if (data is Map && data.containsKey("error")) {
           errorMessage = data["error"].toString();
+        } else if (data is String && data.isNotEmpty) {
+          errorMessage = data;
         }
       }
 

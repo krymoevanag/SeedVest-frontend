@@ -66,7 +66,7 @@ class _AdminBroadcastViewState extends State<AdminBroadcastView> {
               ),
               const SizedBox(height: 32),
               DropdownButtonFormField<String>(
-                value: _selectedType,
+                initialValue: _selectedType,
                 decoration: const InputDecoration(
                   labelText: 'Notification Type',
                   border: OutlineInputBorder(),

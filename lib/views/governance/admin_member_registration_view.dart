@@ -116,7 +116,7 @@ class _AdminMemberRegistrationViewState
               ),
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
-                value: _selectedRole,
+                initialValue: _selectedRole,
                 decoration: const InputDecoration(
                   labelText: 'Initial Role',
                   prefixIcon: Icon(Icons.shield_outlined),
