@@ -275,6 +275,7 @@ class ApiService {
       double amount, String phoneNumber) async {
     return await dio.post('payments/mpesa/pay/', data: {
       'amount': amount,
+      'phone': phoneNumber,
       'phone_number': phoneNumber,
     });
   }
