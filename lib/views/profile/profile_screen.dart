@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -164,6 +165,220 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  String _extractApiError(dynamic data) {
+    if (data is Map) {
+      const fieldPriority = [
+        'current_password',
+        'new_password',
+        'confirm_password',
+        'non_field_errors',
+        'detail',
+        'error',
+        'message',
+      ];
+
+      for (final key in fieldPriority) {
+        if (!data.containsKey(key)) continue;
+        final value = data[key];
+        if (value is List && value.isNotEmpty) return value.first.toString();
+        if (value is String && value.isNotEmpty) return value;
+      }
+    } else if (data is String && data.isNotEmpty) {
+      return data;
+    }
+
+    return 'Failed to change password. Please try again.';
+  }
+
+  Future<void> _showChangePasswordDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscureCurrentPassword = true;
+    bool obscureNewPassword = true;
+    bool obscureConfirmPassword = true;
+    bool isSubmitting = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          Future<void> submitChangePassword() async {
+            if (!formKey.currentState!.validate()) return;
+
+            setDialogState(() => isSubmitting = true);
+            try {
+              final response = await _apiService.changePassword(
+                currentPassword: currentPasswordController.text,
+                newPassword: newPasswordController.text,
+                confirmPassword: confirmPasswordController.text,
+              );
+
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop();
+              }
+              if (mounted) {
+                final successMessage =
+                    response.data is Map && response.data['message'] != null
+                        ? response.data['message'].toString()
+                        : 'Password changed successfully.';
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(successMessage)),
+                );
+              }
+            } on DioException catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(_extractApiError(e.response?.data)),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            } catch (_) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to change password. Please try again.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            } finally {
+              if (dialogContext.mounted) {
+                setDialogState(() => isSubmitting = false);
+              }
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Change Password'),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: currentPasswordController,
+                      obscureText: obscureCurrentPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Current Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureCurrentPassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setDialogState(
+                              () =>
+                                  obscureCurrentPassword = !obscureCurrentPassword,
+                            );
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Current password is required';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: newPasswordController,
+                      obscureText: obscureNewPassword,
+                      decoration: InputDecoration(
+                        labelText: 'New Password',
+                        prefixIcon: const Icon(Icons.password_outlined),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureNewPassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setDialogState(
+                              () => obscureNewPassword = !obscureNewPassword,
+                            );
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'New password is required';
+                        }
+                        if (value.length < 8) {
+                          return 'Password must be at least 8 characters';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: confirmPasswordController,
+                      obscureText: obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm New Password',
+                        prefixIcon: const Icon(Icons.verified_user_outlined),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureConfirmPassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setDialogState(
+                              () =>
+                                  obscureConfirmPassword = !obscureConfirmPassword,
+                            );
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please confirm your new password';
+                        }
+                        if (value != newPasswordController.text) {
+                          return 'Passwords do not match';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed:
+                    isSubmitting ? null : () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: isSubmitting ? null : submitChangePassword,
+                child: isSubmitting
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Update'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    currentPasswordController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final userViewModel = context.watch<UserViewModel>();
@@ -320,22 +535,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-                  if (_biometricAvailable) ...[
-                    const SizedBox(height: 24),
-                    _buildSectionHeader('Security'),
-                    CustomCard(
-                      padding: const EdgeInsets.all(16),
-                      child: SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text('Enable $_biometricLabel Login'),
-                        subtitle: const Text(
-                          'Use biometrics for faster sign in on this device',
+                  const SizedBox(height: 24),
+                  _buildSectionHeader('Security'),
+                  CustomCard(
+                    padding: const EdgeInsets.all(0),
+                    child: Column(
+                      children: [
+                        if (_biometricAvailable)
+                          SwitchListTile(
+                            contentPadding:
+                                const EdgeInsets.symmetric(horizontal: 16),
+                            title: Text('Enable $_biometricLabel Login'),
+                            subtitle: const Text(
+                              'Use biometrics for faster sign in on this device',
+                            ),
+                            value: _biometricEnabled,
+                            onChanged: _toggleBiometric,
+                          ),
+                        if (_biometricAvailable) const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.password_outlined),
+                          title: const Text('Change Password'),
+                          subtitle: const Text(
+                            'Update your account password securely',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: _showChangePasswordDialog,
                         ),
-                        value: _biometricEnabled,
-                        onChanged: _toggleBiometric,
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                   const SizedBox(height: 24),
                   _buildSectionHeader('Support & Legal'),
                   CustomCard(

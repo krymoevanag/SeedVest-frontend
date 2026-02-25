@@ -13,6 +13,16 @@ class ApiService {
   final CacheService _cacheService = CacheService();
   final ConnectivityService _connectivityService = ConnectivityService();
 
+  bool _isPublicEndpoint(String path) {
+    final normalizedPath = path.startsWith('/') ? path.substring(1) : path;
+    return normalizedPath.startsWith('accounts/login/') ||
+        normalizedPath.startsWith('accounts/register/') ||
+        normalizedPath.startsWith('accounts/password-reset/') ||
+        normalizedPath.startsWith('accounts/activate/') ||
+        normalizedPath.startsWith('token/') ||
+        normalizedPath.startsWith('health/');
+  }
+
   ApiService() {
     dio.options.baseUrl = AppConfig.apiUrl;
     dio.options.connectTimeout = const Duration(seconds: 10);
@@ -22,9 +32,7 @@ class ApiService {
       onRequest: (options, handler) async {
         String? token = await storage.read(key: 'access_token');
 
-        if (token != null &&
-            !options.path.contains('password-reset') &&
-            !options.path.contains('token/')) {
+        if (token != null && !_isPublicEndpoint(options.path)) {
           options.headers['Authorization'] = 'Bearer $token';
         }
 
@@ -208,6 +216,21 @@ class ApiService {
 
   Future<Response> updateProfile(Map<String, dynamic> userData) async {
     return await dio.patch('accounts/users/me/', data: userData);
+  }
+
+  Future<Response> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    return await dio.post(
+      'accounts/users/change-password/',
+      data: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+        'confirm_password': confirmPassword,
+      },
+    );
   }
 
   Future<Response> updateProfilePicture(String filePath) async {
