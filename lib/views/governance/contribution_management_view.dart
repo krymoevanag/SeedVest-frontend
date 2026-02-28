@@ -300,8 +300,7 @@ class _ContributionManagementViewState
                                   'User ${m['id']}';
                               return DropdownMenuItem<int>(
                                 value: m['id'],
-                                child:
-                                    Text(name, overflow: TextOverflow.ellipsis),
+                                child: Text(name, overflow: TextOverflow.ellipsis, maxLines: 1),
                               );
                             }).toList(),
                             onChanged: (val) {

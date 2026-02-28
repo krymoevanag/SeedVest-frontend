@@ -20,7 +20,20 @@ class ApiService {
         normalizedPath.startsWith('accounts/password-reset/') ||
         normalizedPath.startsWith('accounts/activate/') ||
         normalizedPath.startsWith('token/') ||
-        normalizedPath.startsWith('health/');
+        normalizedPath.startsWith('health/') ||
+        normalizedPath.startsWith('payments/mpesa/pay/') ||
+        normalizedPath.startsWith('payments/mpesa/status/');
+  }
+
+  String _normalizeMpesaPhone(String phone) {
+    final cleaned = phone.replaceAll(RegExp(r'[\s-]+'), '').trim();
+    if (cleaned.startsWith('+254')) {
+      return cleaned.substring(1);
+    }
+    if (cleaned.startsWith('0') && cleaned.length == 10) {
+      return '254${cleaned.substring(1)}';
+    }
+    return cleaned;
   }
 
   ApiService() {
@@ -157,7 +170,8 @@ class ApiService {
       });
 
       if (response.statusCode == 200 && response.data['access'] != null) {
-        await storage.write(key: 'access_token', value: response.data['access']);
+        await storage.write(
+            key: 'access_token', value: response.data['access']);
         return true;
       }
       return false;
@@ -172,32 +186,32 @@ class ApiService {
   }
 
   Future<Response> getNotifications() async {
-    return await dio.get('notifications/notifications/');
+    return await dio.get('notifications/');
   }
 
   Future<Response> getNotificationPreferences() async {
-    return await dio.get('notifications/notifications/preferences/');
+    return await dio.get('notifications/preferences/');
   }
 
   Future<Response> updateNotificationPreferences(
       Map<String, dynamic> data) async {
-    return await dio.patch('notifications/notifications/preferences/', data: data);
+    return await dio.patch('notifications/preferences/', data: data);
   }
 
   Future<Response> markNotificationRead(int id) async {
-    return await dio.post('notifications/notifications/$id/mark_read/');
+    return await dio.post('notifications/$id/mark_read/');
   }
 
   Future<Response> markAllAllRead() async {
-    return await dio.post('notifications/notifications/mark_all_read/');
+    return await dio.post('notifications/mark_all_read/');
   }
 
   Future<Response> sendNotification(Map<String, dynamic> data) async {
-    return await dio.post('notifications/notifications/', data: data);
+    return await dio.post('notifications/', data: data);
   }
 
   Future<Response> broadcastNotification(Map<String, dynamic> data) async {
-    return await dio.post('notifications/notifications/broadcast/', data: data);
+    return await dio.post('notifications/broadcast/', data: data);
   }
 
   Future<Response> logout() async {
@@ -282,10 +296,11 @@ class ApiService {
 
   Future<Response> initiateMpesaPayment(
       double amount, String phoneNumber) async {
+    final normalizedPhone = _normalizeMpesaPhone(phoneNumber);
     return await dio.post('payments/mpesa/pay/', data: {
       'amount': amount,
-      'phone': phoneNumber,
-      'phone_number': phoneNumber,
+      'phone': normalizedPhone,
+      'phone_number': normalizedPhone,
     });
   }
 
@@ -414,6 +429,60 @@ class ApiService {
 
   Future<Response> adminAddContribution(Map<String, dynamic> data) async {
     return await dio.post('finance/admin-add-contribution/', data: data);
+  }
+
+  Future<Response> resetFinanceHistory(
+      int userId, bool resetAccountStatus) async {
+    return await dio.post('finance/admin-reset-member-finance/', data: {
+      'user_id': userId,
+      'reset_account_status': resetAccountStatus,
+    });
+  }
+
+  Future<Response> getAutoSavingConfigs() async {
+    return await dio.get('finance/auto-savings/');
+  }
+
+  Future<Response> createAutoSavingConfig(Map<String, dynamic> data) async {
+    return await dio.post('finance/auto-savings/', data: data);
+  }
+
+  Future<Response> updateAutoSavingConfig(
+      int id, Map<String, dynamic> data) async {
+    return await dio.patch('finance/auto-savings/$id/', data: data);
+  }
+
+  Future<Response> deleteAutoSavingConfig(int id) async {
+    return await dio.delete('finance/auto-savings/$id/');
+  }
+
+  Future<Response> getSavingsTargets() async {
+    return await dio.get('finance/targets/');
+  }
+
+  Future<Response> createSavingsTarget(Map<String, dynamic> data) async {
+    return await dio.post('finance/targets/', data: data);
+  }
+
+  Future<Response> updateSavingsTarget(
+      int id, Map<String, dynamic> data) async {
+    return await dio.patch('finance/targets/$id/', data: data);
+  }
+
+  Future<Response> deleteSavingsTarget(int id) async {
+    return await dio.delete('finance/targets/$id/');
+  }
+
+  Future<Response> getFinancialInsights() async {
+    return await dio.get('finance/insights/');
+  }
+
+  Future<Response> getMonthlyReport(int groupId, int month, int year) async {
+    return await dio.get('finance/reports/summary/', queryParameters: {
+      'group_id': groupId,
+      'month': month,
+      'year': year,
+    });
   }
 
   Future<Response> getGroups() async {

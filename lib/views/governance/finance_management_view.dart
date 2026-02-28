@@ -19,7 +19,7 @@ class FinanceManagementView extends StatelessWidget {
               icon: Icons.add_card_outlined,
               color: AppColors.primary,
               onTap: () {
-                // TODO: Open Record Payment Modal
+                Navigator.pushNamed(context, '/governance/contributions');
               },
             ),
             const SizedBox(height: 16),
@@ -29,7 +29,7 @@ class FinanceManagementView extends StatelessWidget {
               icon: Icons.gavel_outlined,
               color: AppColors.error,
               onTap: () {
-                // TODO: Open Issue Penalty Modal
+                Navigator.pushNamed(context, '/penalties');
               },
             ),
             const SizedBox(height: 16),
@@ -39,7 +39,7 @@ class FinanceManagementView extends StatelessWidget {
               icon: Icons.trending_up,
               color: AppColors.accent,
               onTap: () {
-                // TODO: Navigate to Investment Management
+                Navigator.pushNamed(context, '/governance/investments');
               },
             ),
           ],
@@ -73,7 +73,7 @@ class _ManagementOptionCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 32),

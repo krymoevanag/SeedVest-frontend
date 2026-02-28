@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../core/network/api_service.dart';
 import '../data/models/contribution.dart';
 
@@ -7,6 +8,8 @@ class ContributionsViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  String? _paymentError;
+  String? get paymentError => _paymentError;
 
   List<Contribution> _contributions = [];
   List<Contribution> get contributions => _contributions;
@@ -28,6 +31,7 @@ class ContributionsViewModel extends ChangeNotifier {
 
   Future<bool> initiatePayment(double amount, String phoneNumber) async {
     _setLoading(true);
+    _paymentError = null;
     try {
       final response =
           await _apiService.initiateMpesaPayment(amount, phoneNumber);
@@ -35,8 +39,17 @@ class ContributionsViewModel extends ChangeNotifier {
         // Payment initiated successfully
         return true;
       }
+      _paymentError = _extractErrorMessage(response.data) ??
+          'Failed to initiate M-Pesa push.';
+      return false;
+    } on DioException catch (e) {
+      _paymentError = _extractErrorMessage(e.response?.data) ??
+          e.message ??
+          'Failed to initiate M-Pesa push.';
+      debugPrint('Error initiating payment: ${e.response?.data ?? e.message}');
       return false;
     } catch (e) {
+      _paymentError = 'Failed to initiate M-Pesa push.';
       debugPrint('Error initiating payment: $e');
       return false;
     } finally {
@@ -147,5 +160,27 @@ class ContributionsViewModel extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  String? _extractErrorMessage(dynamic data) {
+    if (data is Map) {
+      const keys = [
+        'error',
+        'detail',
+        'message',
+        'ResponseDescription',
+        'CustomerMessage',
+      ];
+      for (final key in keys) {
+        final value = data[key];
+        if (value is String && value.trim().isNotEmpty) {
+          return value.trim();
+        }
+      }
+    }
+    if (data is String && data.trim().isNotEmpty) {
+      return data.trim();
+    }
+    return null;
   }
 }

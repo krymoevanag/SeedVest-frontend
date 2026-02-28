@@ -74,7 +74,8 @@ class _MainNavigationState extends State<MainNavigation> {
 
     if (value == 'toggle_internal') {
       final target = !notificationViewModel.muteInternalMessages;
-      final success = await notificationViewModel.setMuteInternalMessages(target);
+      final success =
+          await notificationViewModel.setMuteInternalMessages(target);
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
@@ -105,7 +106,8 @@ class _MainNavigationState extends State<MainNavigation> {
         actions: [
           PopupMenuButton<String>(
             tooltip: 'Notifications',
-            onSelected: (value) => _handleNotificationMenuSelection(context, value),
+            onSelected: (value) =>
+                _handleNotificationMenuSelection(context, value),
             itemBuilder: (context) => [
               const PopupMenuItem<String>(
                 value: 'open',
@@ -213,7 +215,46 @@ class _MainNavigationState extends State<MainNavigation> {
               },
             ),
             const Divider(),
+            const Padding(
+              padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
+              child: Text('FINANCE',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: Colors.grey)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.show_chart_outlined),
+              title: const Text('Financial Insights'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/finance/insights');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.summarize_outlined),
+              title: const Text('Financial Reports'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/finance/reports');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.autorenew_outlined),
+              title: const Text('Auto-Savings'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/finance/auto-savings');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.track_changes_outlined),
+              title: const Text('Savings Goals'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/finance/targets');
+              },
+            ),
             if (userViewModel.isTreasurer) ...[
+              const Divider(),
               const Padding(
                 padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
                 child: Text('GOVERNANCE',
@@ -271,23 +312,6 @@ class _MainNavigationState extends State<MainNavigation> {
                 Navigator.pushNamed(context, '/help');
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.article_outlined),
-              title: const Text('Terms & Conditions'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/terms');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('About Us'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/about');
-              },
-            ),
-            const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Logout', style: TextStyle(color: Colors.red)),

@@ -22,6 +22,9 @@ class GovernanceViewModel extends ChangeNotifier {
   List<NotificationModel> _auditLogs = [];
   List<NotificationModel> get auditLogs => _auditLogs;
 
+  List<dynamic> _groups = [];
+  List<dynamic> get groups => _groups;
+
   Future<void> fetchPendingUsers() async {
     _setLoading(true);
     try {
@@ -214,5 +217,58 @@ class GovernanceViewModel extends ChangeNotifier {
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
+  }
+
+  Future<bool> resetFinanceHistory(int userId, bool resetAccountStatus) async {
+    _setLoading(true);
+    try {
+      final response =
+          await _apiService.resetFinanceHistory(userId, resetAccountStatus);
+      if (response.statusCode == 200) {
+        await fetchApprovedUsers(); // Refresh to show cleared balances
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error resetting finance history: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<List<dynamic>> fetchGroups() async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.getGroups();
+      if (response.statusCode == 200) {
+        _groups = response.data;
+        notifyListeners();
+        return _groups;
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching groups: $e');
+      return [];
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> createInvestment(Map<String, dynamic> data) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.createInvestment(data);
+      if (response.statusCode == 201) {
+        await fetchInvestments();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error creating investment: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
   }
 }

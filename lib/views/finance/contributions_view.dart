@@ -434,9 +434,11 @@ class _ContributionsViewState extends State<ContributionsView> {
                             );
                             viewModel.fetchContributions();
                           } else {
+                            final errorMessage = viewModel.paymentError ??
+                                'Failed to initiate M-Pesa push.';
                             messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Failed to initiate M-Pesa push.'),
+                              SnackBar(
+                                content: Text(errorMessage),
                                 backgroundColor: Colors.red,
                               ),
                             );

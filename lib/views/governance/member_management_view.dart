@@ -161,6 +161,14 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                                         context, user),
                                                 color: Colors.red.shade900,
                                               ),
+                                              _buildActionButton(
+                                                icon: Icons.refresh_outlined,
+                                                label: 'Reset',
+                                                onPressed: () =>
+                                                    _showResetDialog(
+                                                        context, user),
+                                                color: Colors.orange.shade800,
+                                              ),
                                             ],
                                           ),
                                         ],
@@ -432,6 +440,72 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                   style: TextStyle(color: Colors.white)),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  void _showResetDialog(BuildContext context, dynamic user) {
+    bool resetStatus = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Reset Finance: ${user.fullName}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'This will clear all contributions and penalties for this member. This action cannot be undone.',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  CheckboxListTile(
+                    title: const Text('Reset Account Status'),
+                    subtitle: const Text('Move back to Under Review'),
+                    value: resetStatus,
+                    onChanged: (val) =>
+                        setDialogState(() => resetStatus = val!),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final viewModel = context.read<GovernanceViewModel>();
+                    final success = await viewModel.resetFinanceHistory(
+                      user.id,
+                      resetStatus,
+                    );
+
+                    if (mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        SnackBar(
+                          content: Text(success
+                              ? 'Financial history reset successfully'
+                              : 'Failed to reset history'),
+                          backgroundColor:
+                              success ? AppColors.success : AppColors.error,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade800,
+                  ),
+                  child: const Text('Confirm Reset'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

@@ -19,8 +19,10 @@ import 'viewmodels/contributions_viewmodel.dart';
 import 'viewmodels/penalties_viewmodel.dart';
 import 'views/finance/penalties_view.dart';
 import 'viewmodels/governance_viewmodel.dart';
+import 'viewmodels/finance_viewmodel.dart';
 import 'views/governance/member_approval_view.dart';
 import 'views/governance/finance_management_view.dart';
+import 'views/governance/investment_management_view.dart';
 import 'views/governance/audit_logs_view.dart';
 import 'views/governance/member_management_view.dart';
 import 'views/profile/profile_screen.dart';
@@ -30,6 +32,10 @@ import 'views/notifications/notification_center_view.dart';
 import 'views/governance/admin_broadcast_view.dart';
 import 'views/governance/contribution_management_view.dart';
 import 'views/governance/admin_member_registration_view.dart';
+import 'views/finance/financial_insights_view.dart';
+import 'views/finance/financial_reports_view.dart';
+import 'views/finance/auto_saving_config_view.dart';
+import 'views/finance/savings_targets_view.dart';
 import 'views/support/help_screen.dart';
 import 'views/support/terms_conditions_screen.dart';
 import 'views/support/about_us_screen.dart';
@@ -55,6 +61,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => PenaltiesViewModel()),
         ChangeNotifierProvider(create: (_) => GovernanceViewModel()),
         ChangeNotifierProvider(create: (_) => NotificationViewModel()),
+        ChangeNotifierProvider(create: (_) => FinanceViewModel()),
       ],
       child: const SeedVestApp(),
     ),
@@ -160,6 +167,8 @@ class _SeedVestAppState extends State<SeedVestApp> {
             const MemberApprovalView(),
         '/pending-approvals': (context) => const MemberApprovalView(),
         '/governance/finance': (context) => const FinanceManagementView(),
+        '/governance/investments': (context) =>
+            const InvestmentManagementView(),
         '/governance/audit': (context) => const AuditLogsView(),
         '/governance/roles': (context) => const MemberManagementView(),
         '/profile': (context) => const ProfileScreen(),
@@ -169,6 +178,10 @@ class _SeedVestAppState extends State<SeedVestApp> {
             const ContributionManagementView(),
         '/governance/register-member': (context) =>
             const AdminMemberRegistrationView(),
+        '/finance/insights': (context) => const FinancialInsightsView(),
+        '/finance/reports': (context) => const FinancialReportsView(),
+        '/finance/auto-savings': (context) => const AutoSavingConfigView(),
+        '/finance/targets': (context) => const SavingsTargetsView(),
         '/help': (context) => const HelpScreen(),
         '/terms': (context) => const TermsConditionsScreen(),
         '/about': (context) => const AboutUsScreen(),
@@ -186,4 +199,3 @@ class _SeedVestAppState extends State<SeedVestApp> {
     );
   }
 }
-

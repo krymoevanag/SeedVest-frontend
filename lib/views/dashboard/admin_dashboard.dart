@@ -13,6 +13,57 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
+  int _readInt(
+    Map<String, dynamic> stats,
+    List<String> keys, {
+    int fallback = 0,
+  }) {
+    for (final key in keys) {
+      final value = stats[key];
+      final parsed = _toInt(value);
+      if (parsed != null) return parsed;
+    }
+    return fallback;
+  }
+
+  double _readDouble(
+    Map<String, dynamic> stats,
+    List<String> keys, {
+    double fallback = 0,
+  }) {
+    for (final key in keys) {
+      final value = stats[key];
+      final parsed = _toDouble(value);
+      if (parsed != null) return parsed;
+    }
+    return fallback;
+  }
+
+  int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      final normalized = value.replaceAll(',', '').trim();
+      final intValue = int.tryParse(normalized);
+      if (intValue != null) return intValue;
+      final doubleValue = double.tryParse(normalized);
+      if (doubleValue != null) return doubleValue.toInt();
+    }
+    return null;
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final normalized = value.replaceAll(',', '').trim();
+      return double.tryParse(normalized);
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -26,6 +77,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final viewModel = context.watch<DashboardViewModel>();
     final stats = viewModel.adminStats;
     final currencyFormat = NumberFormat.currency(symbol: 'KES ');
+    final totalUsers = _readInt(
+      stats,
+      const ['total_users', 'all_members', 'members_count'],
+    );
+    final pendingApprovals = _readInt(
+      stats,
+      const ['pending_approvals', 'pending_members'],
+    );
+    final totalSavings = _readDouble(
+      stats,
+      const ['total_savings', 'total_contributions', 'savings_total'],
+    );
+    final totalPenalties = _readDouble(
+      stats,
+      const ['total_penalties', 'penalties_total'],
+    );
+    final grandTotal = _readDouble(
+      stats,
+      const ['grand_total', 'overall_total', 'group_total'],
+      fallback: totalSavings + totalPenalties,
+    );
+    final pendingPayments = _readInt(
+      stats,
+      const [
+        'pending_contributions_count',
+        'pending_payments',
+        'pending_contributions',
+      ],
+    );
 
     return RefreshIndicator(
       onRefresh: viewModel.fetchAdminStats,
@@ -52,7 +132,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 _StatCard(
                   title: 'All Members',
-                  value: stats['total_users']?.toString() ?? '-',
+                  value: totalUsers.toString(),
                   icon: Icons.people_outline,
                   color: Colors.blue,
                   onTap: () =>
@@ -60,7 +140,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
                 _StatCard(
                   title: 'Pending Approvals',
-                  value: stats['pending_approvals']?.toString() ?? '-',
+                  value: pendingApprovals.toString(),
                   icon: Icons.how_to_reg,
                   color: Colors.orange,
                   onTap: () =>
@@ -68,7 +148,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
                 _StatCard(
                   title: 'Total Savings',
-                  value: currencyFormat.format(stats['total_savings'] ?? 0),
+                  value: currencyFormat.format(totalSavings),
                   icon: Icons.savings_outlined,
                   color: Colors.green,
                   isCurrency: true,
@@ -77,7 +157,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
                 _StatCard(
                   title: 'Total Penalties',
-                  value: currencyFormat.format(stats['total_penalties'] ?? 0),
+                  value: currencyFormat.format(totalPenalties),
                   icon: Icons.gavel,
                   color: Colors.redAccent,
                   isCurrency: true,
@@ -85,15 +165,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
                 _StatCard(
                   title: 'Grand Total',
-                  value: currencyFormat.format(stats['grand_total'] ?? 0),
+                  value: currencyFormat.format(grandTotal),
                   icon: Icons.account_balance,
                   color: AppColors.primary,
                   isCurrency: true,
                 ),
                 _StatCard(
                   title: 'Pending Payments',
-                  value:
-                      stats['pending_contributions_count']?.toString() ?? '-',
+                  value: pendingPayments.toString(),
                   icon: Icons.pending_actions,
                   color: Colors.amber,
                   onTap: () =>

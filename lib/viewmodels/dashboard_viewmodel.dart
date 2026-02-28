@@ -44,7 +44,11 @@ class DashboardViewModel extends ChangeNotifier {
     try {
       final response = await _apiService.getAdminStats();
       if (response.statusCode == 200) {
-        _adminStats = response.data;
+        if (response.data is Map) {
+          _adminStats = Map<String, dynamic>.from(response.data as Map);
+        } else {
+          _adminStats = {};
+        }
       }
     } catch (e) {
       debugPrint('Error fetching admin stats: $e');
