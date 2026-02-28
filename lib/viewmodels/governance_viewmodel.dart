@@ -197,7 +197,7 @@ class GovernanceViewModel extends ChangeNotifier {
     _setLoading(true);
     try {
       final response = await _apiService.issuePenalty({
-        'user_id': userId,
+        'user': userId,
         'amount': amount,
         'reason': reason,
       });

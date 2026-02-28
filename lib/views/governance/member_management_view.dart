@@ -294,75 +294,111 @@ class _MemberManagementViewState extends State<MemberManagementView> {
     final amountController = TextEditingController();
     final reasonController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('Issue Penalty to ${user.fullName}'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: amountController,
-                  decoration: const InputDecoration(
-                    labelText: 'Amount (KES)',
-                    prefixIcon: Icon(Icons.attach_money),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (val) =>
-                      val == null || val.isEmpty ? 'Amount is required' : null,
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Issue Penalty to ${user.fullName}'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: amountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Amount (KES)',
+                        prefixIcon: Icon(Icons.attach_money),
+                      ),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      validator: (val) => val == null || val.isEmpty
+                          ? 'Amount is required'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: reasonController,
+                      decoration: const InputDecoration(
+                        labelText: 'Reason',
+                        prefixIcon: Icon(Icons.info_outline),
+                      ),
+                      validator: (val) => val == null || val.isEmpty
+                          ? 'Reason is required'
+                          : null,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: reasonController,
-                  decoration: const InputDecoration(
-                    labelText: 'Reason',
-                    prefixIcon: Icon(Icons.info_outline),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+
+                          final amountText =
+                              amountController.text.replaceAll(',', '');
+                          final amount = double.tryParse(amountText);
+                          if (amount == null) {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Invalid amount'),
+                                  backgroundColor: Colors.red),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSubmitting = true);
+
+                          final viewModel = context.read<GovernanceViewModel>();
+                          final success = await viewModel.issuePenalty(
+                            userId: user.id,
+                            amount: amount,
+                            reason: reasonController.text,
+                          );
+
+                          if (mounted) {
+                            if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
+                            }
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(success
+                                    ? 'Penalty issued successfully'
+                                    : 'Failed to issue penalty'),
+                                backgroundColor: success
+                                    ? AppColors.success
+                                    : AppColors.error,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
                   ),
-                  validator: (val) =>
-                      val == null || val.isEmpty ? 'Reason is required' : null,
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Issue Penalty'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-
-                final viewModel = context.read<GovernanceViewModel>();
-                final success = await viewModel.issuePenalty(
-                  userId: user.id,
-                  amount: double.parse(amountController.text),
-                  reason: reasonController.text,
-                );
-
-                if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(this.context).showSnackBar(
-                    SnackBar(
-                      content: Text(success
-                          ? 'Penalty issued successfully'
-                          : 'Failed to issue penalty'),
-                      backgroundColor:
-                          success ? AppColors.success : AppColors.error,
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
-              child: const Text('Issue Penalty'),
-            ),
-          ],
+            );
+          },
         );
       },
     );

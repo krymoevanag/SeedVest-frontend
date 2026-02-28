@@ -137,49 +137,128 @@ class _SavingsTargetsViewState extends State<SavingsTargetsView> {
   void _showCreateTargetDialog() {
     final nameController = TextEditingController();
     final amountController = TextEditingController();
+    DateTime? selectedDeadline;
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Set New Savings Goal'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                    labelText: 'Goal Name (e.g. Land Purchase)'),
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: const Text('Set New Savings Goal'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Goal Name (e.g. Land Purchase)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: amountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Target Amount (KES)',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: dialogContext,
+                          initialDate:
+                              DateTime.now().add(const Duration(days: 30)),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now()
+                              .add(const Duration(days: 365 * 10)),
+                        );
+                        if (picked != null) {
+                          setDialogState(() => selectedDeadline = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Deadline (Optional)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          selectedDeadline != null
+                              ? "${selectedDeadline!.year}-${selectedDeadline!.month.toString().padLeft(2, '0')}-${selectedDeadline!.day.toString().padLeft(2, '0')}"
+                              : 'Select a date',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: amountController,
-                decoration:
-                    const InputDecoration(labelText: 'Target Amount (UGX)'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.isNotEmpty &&
-                    amountController.text.isNotEmpty) {
-                  final success = await context
-                      .read<FinanceViewModel>()
-                      .createSavingsTarget({
-                    'name': nameController.text,
-                    'target_amount': double.parse(amountController.text),
-                  });
-                  if (success && mounted) Navigator.pop(context);
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (nameController.text.isNotEmpty &&
+                              amountController.text.isNotEmpty) {
+                            setDialogState(() => isSubmitting = true);
+
+                            final amount =
+                                double.tryParse(amountController.text);
+                            if (amount == null || amount <= 0) {
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text('Please enter a valid amount')),
+                              );
+                              setDialogState(() => isSubmitting = false);
+                              return;
+                            }
+
+                            final data = {
+                              'name': nameController.text,
+                              'target_amount': amount,
+                              'start_date': DateTime.now()
+                                  .toIso8601String()
+                                  .split('T')[0],
+                            };
+
+                            if (selectedDeadline != null) {
+                              data['deadline'] = selectedDeadline!
+                                  .toIso8601String()
+                                  .split('T')[0];
+                            }
+
+                            final success = await dialogContext
+                                .read<FinanceViewModel>()
+                                .createSavingsTarget(data);
+
+                            if (success && dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                            } else {
+                              setDialogState(() => isSubmitting = false);
+                            }
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ))
+                      : const Text('Create'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

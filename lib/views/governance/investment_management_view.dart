@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/governance_viewmodel.dart';
-import '../../core/theme/app_theme.dart';
 import '../finance/investments_view.dart';
 
 class InvestmentManagementView extends StatefulWidget {

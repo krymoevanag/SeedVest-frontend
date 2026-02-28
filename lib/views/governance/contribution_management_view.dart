@@ -145,22 +145,26 @@ class _ContributionManagementViewState
                                     Text(
                                       'Reported paid date: ${DateFormat('dd MMM yyyy').format(contribution.reportedPaidDate!)}',
                                       style: TextStyle(
-                                          color: Colors.grey[700], fontSize: 13),
+                                          color: Colors.grey[700],
+                                          fontSize: 13),
                                     ),
                                   if ((contribution.reportedReference ?? '')
                                       .isNotEmpty)
                                     Text(
                                       'Reference: ${contribution.reportedReference}',
                                       style: TextStyle(
-                                          color: Colors.grey[700], fontSize: 13),
+                                          color: Colors.grey[700],
+                                          fontSize: 13),
                                     ),
-                                  if ((contribution.reportedNote ?? '').isNotEmpty)
+                                  if ((contribution.reportedNote ?? '')
+                                      .isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 4),
                                       child: Text(
                                         'Note: ${contribution.reportedNote}',
                                         style: TextStyle(
-                                            color: Colors.grey[700], fontSize: 13),
+                                            color: Colors.grey[700],
+                                            fontSize: 13),
                                       ),
                                     ),
                                 ],
@@ -300,7 +304,9 @@ class _ContributionManagementViewState
                                   'User ${m['id']}';
                               return DropdownMenuItem<int>(
                                 value: m['id'],
-                                child: Text(name, overflow: TextOverflow.ellipsis, maxLines: 1),
+                                child: Text(name,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1),
                               );
                             }).toList(),
                             onChanged: (val) {
@@ -411,7 +417,8 @@ class _ContributionManagementViewState
                           final viewModel = Provider.of<ContributionsViewModel>(
                               context,
                               listen: false);
-                          final success = await viewModel.adminAddContribution(
+                          final errorMessage =
+                              await viewModel.adminAddContribution(
                             userId: selectedUserId!,
                             groupId: selectedGroupId!,
                             amount: amount,
@@ -426,11 +433,12 @@ class _ContributionManagementViewState
                           if (ctx.mounted) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               SnackBar(
-                                content: Text(success
+                                content: Text(errorMessage == null
                                     ? 'Contribution added successfully!'
-                                    : 'Failed to add contribution'),
-                                backgroundColor:
-                                    success ? Colors.green : Colors.red,
+                                    : 'Failed: $errorMessage'),
+                                backgroundColor: errorMessage == null
+                                    ? Colors.green
+                                    : Colors.red,
                               ),
                             );
                           }

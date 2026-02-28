@@ -14,6 +14,34 @@ class ContributionsViewModel extends ChangeNotifier {
   List<Contribution> _contributions = [];
   List<Contribution> get contributions => _contributions;
 
+  List<Map<String, dynamic>> _members = [];
+  List<Map<String, dynamic>> get members => _members;
+
+  List<Map<String, dynamic>> _groups = [];
+  List<Map<String, dynamic>> get groups => _groups;
+
+  Future<void> fetchUsersAndGroups() async {
+    _setLoading(true);
+    try {
+      final results = await Future.wait([
+        _apiService.getUsers(approvedOnly: true),
+        _apiService.getGroups(),
+      ]);
+      final membersList = (results[0].data as List)
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      final groupsList = (results[1].data as List)
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+      _members = membersList;
+      _groups = groupsList;
+    } catch (e) {
+      debugPrint('Error fetching users and groups: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> fetchContributions() async {
     _setLoading(true);
     try {
@@ -69,8 +97,9 @@ class ContributionsViewModel extends ChangeNotifier {
     try {
       final payload = <String, dynamic>{
         'amount': amount,
-        'reported_paid_date':
-            (reportedPaidDate ?? DateTime.now()).toIso8601String().split('T')[0],
+        'reported_paid_date': (reportedPaidDate ?? DateTime.now())
+            .toIso8601String()
+            .split('T')[0],
       };
       if (groupId != null) {
         payload['group_id'] = groupId;
@@ -127,7 +156,7 @@ class ContributionsViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> adminAddContribution({
+  Future<String?> adminAddContribution({
     required int userId,
     required int groupId,
     required double amount,
@@ -146,12 +175,19 @@ class ContributionsViewModel extends ChangeNotifier {
       final response = await _apiService.adminAddContribution(data);
       if (response.statusCode == 201) {
         await fetchContributions();
-        return true;
+        return null;
+      } else {
+        return 'Failed to add contribution';
       }
-      return false;
+    } on DioException catch (e) {
+      final errorMessage = _extractErrorMessage(e.response?.data) ??
+          e.message ??
+          'Failed to add contribution';
+      debugPrint('Error adding contribution: $errorMessage');
+      return errorMessage;
     } catch (e) {
       debugPrint('Error adding contribution: $e');
-      return false;
+      return 'An unexpected error occurred.';
     } finally {
       _setLoading(false);
     }
@@ -170,11 +206,16 @@ class ContributionsViewModel extends ChangeNotifier {
         'message',
         'ResponseDescription',
         'CustomerMessage',
+        'group_id',
+        'user_id',
+        'non_field_errors'
       ];
       for (final key in keys) {
         final value = data[key];
         if (value is String && value.trim().isNotEmpty) {
           return value.trim();
+        } else if (value is List && value.isNotEmpty) {
+          return value.first.toString();
         }
       }
     }
