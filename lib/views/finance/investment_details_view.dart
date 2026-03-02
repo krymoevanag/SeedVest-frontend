@@ -1,18 +1,109 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/colors.dart';
 import '../../data/models/investment.dart';
 import '../widgets/custom_card.dart';
+import '../../viewmodels/governance_viewmodel.dart';
+import '../../viewmodels/user_viewmodel.dart';
 
-class InvestmentDetailsView extends StatelessWidget {
+class InvestmentDetailsView extends StatefulWidget {
   final Investment investment;
 
   const InvestmentDetailsView({super.key, required this.investment});
 
   @override
+  State<InvestmentDetailsView> createState() => _InvestmentDetailsViewState();
+}
+
+class _InvestmentDetailsViewState extends State<InvestmentDetailsView> {
+  bool _isApproving = false;
+  bool _isRejecting = false;
+
+  void _approveInvestment() async {
+    setState(() => _isApproving = true);
+    final viewModel = context.read<GovernanceViewModel>();
+    final success = await viewModel.approveInvestment(widget.investment.id,
+        notes: 'Approved via app');
+
+    if (!mounted) return;
+    setState(() => _isApproving = false);
+
+    if (!context.mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Investment Approved!'),
+          backgroundColor: Colors.green));
+      Navigator.pop(context); // Go back to refresh list
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Failed to approve'), backgroundColor: Colors.red));
+    }
+  }
+
+  void _rejectInvestment() async {
+    final viewModel = context.read<GovernanceViewModel>();
+    final noteController = TextEditingController();
+    final note = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reject Investment'),
+        content: TextField(
+          controller: noteController,
+          decoration: const InputDecoration(
+              hintText: 'Reason for rejection', border: OutlineInputBorder()),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              if (noteController.text.trim().isEmpty) return;
+              Navigator.pop(context, noteController.text.trim());
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (note != null && note.isNotEmpty) {
+      if (!mounted) return;
+      setState(() => _isRejecting = true);
+
+      final success =
+          await viewModel.rejectInvestment(widget.investment.id, note);
+
+      if (!mounted) return;
+      setState(() => _isRejecting = false);
+
+      if (!context.mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Investment Rejected!'),
+            backgroundColor: Colors.orange));
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Failed to reject'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final investment = widget.investment;
     final currencyFormat = NumberFormat.currency(symbol: 'KES ');
     final dateFormat = DateFormat('MMMM dd, yyyy');
+
+    final userViewModel = context.watch<UserViewModel>();
+    final canApprove = (userViewModel.isAdmin || userViewModel.isTreasurer) &&
+        investment.status == 'PENDING_APPROVAL';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Investment Details')),
@@ -81,22 +172,41 @@ class InvestmentDetailsView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            Text(
-              'Description',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Details', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
-            Text(
-              investment.description.isEmpty
-                  ? 'No description provided.'
-                  : investment.description,
-              style: const TextStyle(height: 1.6, fontSize: 16),
+            CustomCard(
+              child: Column(
+                children: [
+                  _PerformanceRow(
+                      label: 'Description',
+                      value: investment.description.isEmpty
+                          ? 'N/A'
+                          : investment.description),
+                  const Divider(),
+                  _PerformanceRow(
+                      label: 'Category',
+                      value: investment.category.isEmpty
+                          ? 'N/A'
+                          : investment.category),
+                  const Divider(),
+                  _PerformanceRow(
+                      label: 'Purpose',
+                      value: investment.purpose.isEmpty
+                          ? 'N/A'
+                          : investment.purpose),
+                  if (investment.businessCase != null &&
+                      investment.businessCase!.isNotEmpty) ...[
+                    const Divider(),
+                    _PerformanceRow(
+                        label: 'Business Case',
+                        value: investment.businessCase!),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: 32),
-            Text(
-              'Performance Tracking',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Performance & Rules',
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             CustomCard(
               child: Column(
@@ -107,19 +217,30 @@ class InvestmentDetailsView extends StatelessWidget {
                       isStatus: true),
                   const Divider(),
                   _PerformanceRow(
-                      label: 'Initial Value',
-                      value: currencyFormat.format(investment.amountInvested)),
+                      label: 'Return Type', value: investment.returnType),
                   const Divider(),
                   _PerformanceRow(
-                    label: 'Projected Returns',
-                    value: currencyFormat.format(investment.amountInvested *
-                        (1 + investment.expectedRoiPercentage / 100)),
-                  ),
-                  if (investment.endDate != null) ...[
+                      label: 'Payout Freq', value: investment.payoutFrequency),
+                  const Divider(),
+                  _PerformanceRow(
+                      label: 'Risk Level', value: investment.riskLevel),
+                  if (investment.duration != null) ...[
                     const Divider(),
                     _PerformanceRow(
-                        label: 'Target End Date',
-                        value: dateFormat.format(investment.endDate!)),
+                        label: 'Duration (Months)',
+                        value: investment.duration.toString()),
+                  ],
+                  if (investment.minCapital != null) ...[
+                    const Divider(),
+                    _PerformanceRow(
+                        label: 'Min Capital',
+                        value: currencyFormat.format(investment.minCapital)),
+                  ],
+                  if (investment.lockInPeriod != null) ...[
+                    const Divider(),
+                    _PerformanceRow(
+                        label: 'Lock-in (Months)',
+                        value: investment.lockInPeriod.toString()),
                   ],
                 ],
               ),
@@ -127,7 +248,47 @@ class InvestmentDetailsView extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: canApprove ? _buildApprovalActions() : null,
     );
+  }
+
+  Widget _buildApprovalActions() {
+    return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white, boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))
+        ]),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            OutlinedButton.icon(
+              onPressed:
+                  (_isApproving || _isRejecting) ? null : _rejectInvestment,
+              icon: _isRejecting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.close, color: Colors.red),
+              label: const Text('Reject', style: TextStyle(color: Colors.red)),
+              style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red)),
+            ),
+            ElevatedButton.icon(
+              onPressed:
+                  (_isApproving || _isRejecting) ? null : _approveInvestment,
+              icon: _isApproving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.check),
+              label: const Text('Approve'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            )
+          ],
+        ));
   }
 }
 
@@ -169,14 +330,22 @@ class _PerformanceRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isStatus
-                  ? (value == 'ACTIVE' ? Colors.green : Colors.blue)
-                  : Colors.black87,
+          Expanded(
+              child: Text(label, style: const TextStyle(color: Colors.grey))),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isStatus
+                    ? ((value == 'ACTIVE' || value == 'APPROVED')
+                        ? Colors.green
+                        : (value == 'PENDING_APPROVAL'
+                            ? Colors.orange
+                            : Colors.red))
+                    : Colors.black87,
+              ),
             ),
           ),
         ],

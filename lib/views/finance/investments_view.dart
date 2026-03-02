@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/colors.dart';
 import '../../viewmodels/governance_viewmodel.dart';
-import '../../viewmodels/user_viewmodel.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/add_investment_dialog.dart';
 import 'investment_details_view.dart';
+import '../../data/models/investment.dart';
 
 class InvestmentsView extends StatefulWidget {
   const InvestmentsView({super.key});
@@ -37,7 +37,7 @@ class _InvestmentsViewState extends State<InvestmentsView> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Investment created successfully!'),
+          content: Text('Investment proposal mapped out successfully!'),
           backgroundColor: Colors.green,
         ),
       );
@@ -47,133 +47,170 @@ class _InvestmentsViewState extends State<InvestmentsView> {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<GovernanceViewModel>();
-    final userViewModel = context.watch<UserViewModel>();
-    final canAddInvestment = userViewModel.isAdmin || userViewModel.isTreasurer;
+
+    // Divide investments into Proposals vs Active/Matured
+    final proposals = viewModel.investments
+        .where((inv) =>
+            ['DRAFT', 'PENDING_APPROVAL', 'REJECTED'].contains(inv.status))
+        .toList();
+    final activeInvestments = viewModel.investments
+        .where((inv) =>
+            !['DRAFT', 'PENDING_APPROVAL', 'REJECTED'].contains(inv.status))
+        .toList();
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          toolbarHeight: 10,
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Active Investments'),
+              Tab(text: 'Proposals'),
+            ],
+            labelColor: AppColors.primary,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: AppColors.primary,
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildInvestmentList(activeInvestments, viewModel.isLoading,
+                viewModel.fetchInvestments),
+            _buildInvestmentList(
+                proposals, viewModel.isLoading, viewModel.fetchInvestments),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _showAddInvestmentDialog(context),
+          label: const Text('Propose / Add'),
+          icon: const Icon(Icons.add_business),
+          backgroundColor: AppColors.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInvestmentList(List<Investment> investments, bool isLoading,
+      Future<void> Function() onRefresh) {
     final currencyFormat = NumberFormat.currency(symbol: 'KES ');
 
-    return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: viewModel.fetchInvestments,
-        child: viewModel.isLoading && viewModel.investments.isEmpty
-            ? ListView.builder(
-                padding: const EdgeInsets.all(20),
-                itemCount: 5,
-                itemBuilder: (context, index) => const ShimmerListTile(),
-              )
-            : viewModel.investments.isEmpty
-                ? const Center(child: Text('No active investments found.'))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: viewModel.investments.length,
-                    itemBuilder: (context, index) {
-                      final investment = viewModel.investments[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: CustomCard(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => InvestmentDetailsView(
-                                    investment: investment),
-                              ),
-                            );
-                          },
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          investment.name,
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        if (investment.groupName != null)
-                                          Text(
-                                            investment.groupName!,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[600],
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  _StatusBadge(status: investment.status),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                investment.description,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: isLoading && investments.isEmpty
+          ? ListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: 5,
+              itemBuilder: (context, index) => const ShimmerListTile(),
+            )
+          : investments.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 200),
+                    Center(
+                        child: Text('No investments found in this category.')),
+                  ],
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: investments.length,
+                  itemBuilder: (context, index) {
+                    final investment = investments[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: CustomCard(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  InvestmentDetailsView(investment: investment),
+                            ),
+                          );
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text('Amount Invested',
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey)),
                                       Text(
-                                        currencyFormat
-                                            .format(investment.amountInvested),
+                                        investment.name,
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      const Text('Expected ROI',
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey)),
-                                      Text(
-                                        '${investment.expectedRoiPercentage}%',
-                                        style: const TextStyle(
+                                          fontSize: 18,
                                           fontWeight: FontWeight.bold,
-                                          color: AppColors.primary,
                                         ),
                                       ),
+                                      if (investment.groupName != null)
+                                        Text(
+                                          investment.groupName!,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
+                                ),
+                                _StatusBadge(status: investment.status),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              investment.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Amount Invested',
+                                        style: TextStyle(
+                                            fontSize: 12, color: Colors.grey)),
+                                    Text(
+                                      currencyFormat
+                                          .format(investment.amountInvested),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    const Text('Expected ROI',
+                                        style: TextStyle(
+                                            fontSize: 12, color: Colors.grey)),
+                                    Text(
+                                      '${investment.expectedRoiPercentage}%',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
-      ),
-      floatingActionButton: canAddInvestment
-          ? FloatingActionButton.extended(
-              onPressed: () => _showAddInvestmentDialog(context),
-              label: const Text('Add Investment'),
-              icon: const Icon(Icons.add_business),
-              backgroundColor: AppColors.primary,
-            )
-          : null,
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }
@@ -187,13 +224,19 @@ class _StatusBadge extends StatelessWidget {
     Color color;
     switch (status.toUpperCase()) {
       case 'ACTIVE':
+      case 'APPROVED':
         color = Colors.green;
         break;
-      case 'COMPLETED':
-        color = Colors.blue;
-        break;
-      case 'PENDING':
+      case 'PENDING_APPROVAL':
         color = Colors.orange;
+        break;
+      case 'REJECTED':
+      case 'CANCELLED':
+        color = Colors.red;
+        break;
+      case 'COMPLETED':
+      case 'MATURED':
+        color = Colors.blue;
         break;
       default:
         color = Colors.grey;
@@ -207,7 +250,7 @@ class _StatusBadge extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
-        status,
+        status.replaceAll('_', ' '),
         style:
             TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
       ),

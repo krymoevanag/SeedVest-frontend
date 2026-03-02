@@ -273,6 +273,41 @@ class GovernanceViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> approveInvestment(int id, {String notes = ''}) async {
+    _setLoading(true);
+    try {
+      final response =
+          await _apiService.approveInvestment(id, {'notes': notes});
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        await fetchInvestments();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error approving investment: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> rejectInvestment(int id, String notes) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.rejectInvestment(id, {'notes': notes});
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        await fetchInvestments();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error rejecting investment: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<bool> assignUserToGroup({
     required int userId,
     required int groupId,

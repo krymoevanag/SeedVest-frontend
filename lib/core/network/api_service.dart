@@ -377,6 +377,14 @@ class ApiService {
     return await dio.post('finance/investments/', data: data);
   }
 
+  Future<Response> approveInvestment(int id, Map<String, dynamic> data) async {
+    return await dio.post('finance/investments/$id/approve/', data: data);
+  }
+
+  Future<Response> rejectInvestment(int id, Map<String, dynamic> data) async {
+    return await dio.post('finance/investments/$id/reject/', data: data);
+  }
+
   Future<Response> issuePenalty(Map<String, dynamic> data) async {
     return await dio.post('finance/penalties/', data: data);
   }
