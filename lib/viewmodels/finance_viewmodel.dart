@@ -10,6 +10,12 @@ class FinanceViewModel extends ChangeNotifier {
   Map<String, dynamic>? _insights;
   Map<String, dynamic>? get insights => _insights;
 
+  Map<String, dynamic>? _memberAnalytics;
+  Map<String, dynamic>? get memberAnalytics => _memberAnalytics;
+
+  Map<String, dynamic>? _groupAnalytics;
+  Map<String, dynamic>? get groupAnalytics => _groupAnalytics;
+
   List<dynamic> _savingsTargets = [];
   List<dynamic> get savingsTargets => _savingsTargets;
 
@@ -43,6 +49,34 @@ class FinanceViewModel extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error fetching insights: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> fetchMemberAnalytics({int? groupId}) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.getMemberAnalytics(groupId: groupId);
+      if (response.statusCode == 200) {
+        _memberAnalytics = response.data;
+      }
+    } catch (e) {
+      debugPrint('Error fetching member analytics: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> fetchGroupAnalytics(int groupId) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.getGroupAnalytics(groupId);
+      if (response.statusCode == 200) {
+        _groupAnalytics = response.data;
+      }
+    } catch (e) {
+      debugPrint('Error fetching group analytics: $e');
     } finally {
       _setLoading(false);
     }

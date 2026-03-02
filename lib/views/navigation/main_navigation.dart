@@ -6,7 +6,7 @@ import '../../viewmodels/notification_viewmodel.dart';
 import '../../viewmodels/user_viewmodel.dart';
 import '../dashboard/member_dashboard.dart';
 import '../finance/contributions_view.dart';
-import '../dashboard/analytics_view.dart';
+import '../finance/analytics_screen.dart';
 import '../finance/investments_view.dart';
 import '../dashboard/admin_dashboard.dart';
 
@@ -40,7 +40,7 @@ class _MainNavigationState extends State<MainNavigation> {
     // Rebuild screens list based on role
     _screens = [
       userViewModel.isAdmin ? const AdminDashboard() : const MemberDashboard(),
-      const AnalyticsView(),
+      const AnalyticsScreen(),
       const ContributionsView(),
       const InvestmentsView(),
     ];
@@ -224,10 +224,10 @@ class _MainNavigationState extends State<MainNavigation> {
             ),
             ListTile(
               leading: const Icon(Icons.show_chart_outlined),
-              title: const Text('Financial Insights'),
+              title: const Text('Financial Analytics'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/finance/insights');
+                _onItemTapped(1); // Index of AnalyticsScreen
               },
             ),
             ListTile(

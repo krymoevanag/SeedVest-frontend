@@ -503,6 +503,18 @@ class ApiService {
     });
   }
 
+  Future<Response> getMemberAnalytics({int? groupId}) async {
+    return await dio.get('finance/analytics/member/', queryParameters: {
+      if (groupId != null) 'group_id': groupId,
+    });
+  }
+
+  Future<Response> getGroupAnalytics(int groupId) async {
+    return await dio.get('finance/analytics/group/', queryParameters: {
+      'group_id': groupId,
+    });
+  }
+
   Future<Response> getGroups() async {
     return await dio.get('groups/groups/');
   }
