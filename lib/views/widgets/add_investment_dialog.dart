@@ -124,295 +124,283 @@ class _AddInvestmentDialogState extends State<AddInvestmentDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    return AlertDialog(
       insetPadding: const EdgeInsets.all(16),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 800),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Propose/Add Investment',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    _buildSectionHeader('Basic Details'),
-                    Consumer<GovernanceViewModel>(
-                      builder: (context, viewModel, child) {
-                        if (viewModel.groups.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text('No groups available to target.'),
-                          );
-                        }
-                        return DropdownButtonFormField<int>(
-                          initialValue: _selectedGroupId,
-                          decoration: const InputDecoration(
-                            labelText: 'Target Group',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: viewModel.groups.map((g) {
-                            return DropdownMenuItem<int>(
-                              value: g['id'],
-                              child: Text(g['name']),
-                            );
-                          }).toList(),
-                          onChanged: _isSubmitting
-                              ? null
-                              : (val) => setState(() => _selectedGroupId = val),
-                          validator: (val) =>
-                              val == null ? 'Target group is required' : null,
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('Propose/Add Investment',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 600,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSectionHeader('Basic Details'),
+                Consumer<GovernanceViewModel>(
+                  builder: (context, viewModel, child) {
+                    if (viewModel.groups.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text('No groups available to target.'),
+                      );
+                    }
+                    return DropdownButtonFormField<int>(
+                      initialValue: _selectedGroupId,
+                      decoration: const InputDecoration(
+                        labelText: 'Target Group',
+                        hintText: 'Select group',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: viewModel.groups.map((g) {
+                        return DropdownMenuItem<int>(
+                          value: g['id'],
+                          child: Text(g['name']),
                         );
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _nameController,
-                      enabled: !_isSubmitting,
-                      decoration: const InputDecoration(
-                          labelText: 'Investment Name',
-                          border: OutlineInputBorder()),
-                      validator: (val) => (val == null || val.isEmpty)
-                          ? 'Name is required'
-                          : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _descriptionController,
-                      enabled: !_isSubmitting,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                          labelText: 'Description',
-                          border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _categoryController,
-                            enabled: !_isSubmitting,
-                            decoration: const InputDecoration(
-                                labelText: 'Category',
-                                border: OutlineInputBorder()),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _purposeController,
-                            enabled: !_isSubmitting,
-                            decoration: const InputDecoration(
-                                labelText: 'Purpose',
-                                border: OutlineInputBorder()),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _businessCaseController,
-                      enabled: !_isSubmitting,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                          labelText: 'Business Case (Optional)',
-                          border: OutlineInputBorder()),
-                    ),
-                    _buildSectionHeader('Financials'),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _amountController,
-                            enabled: !_isSubmitting,
-                            decoration: const InputDecoration(
-                                labelText: 'Principal Amount (KES)',
-                                border: OutlineInputBorder()),
-                            keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true),
-                            validator: (val) {
-                              if (val == null || val.isEmpty) return 'Required';
-                              if (double.tryParse(val) == null) {
-                                return 'Invalid';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _minCapitalController,
-                            enabled: !_isSubmitting,
-                            decoration: const InputDecoration(
-                                labelText: 'Min Capital (Optional)',
-                                border: OutlineInputBorder()),
-                            keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _roiController,
-                            enabled: !_isSubmitting,
-                            decoration: const InputDecoration(
-                                labelText: 'Expected ROI (%)',
-                                border: OutlineInputBorder()),
-                            keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true),
-                            validator: (val) {
-                              if (val == null || val.isEmpty) return 'Required';
-                              if (double.tryParse(val) == null) {
-                                return 'Invalid';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _returnType,
-                            decoration: const InputDecoration(
-                                labelText: 'Return Type',
-                                border: OutlineInputBorder()),
-                            items: const [
-                              DropdownMenuItem(
-                                  value: 'FIXED', child: Text('Fixed')),
-                              DropdownMenuItem(
-                                  value: 'VARIABLE', child: Text('Variable')),
-                              DropdownMenuItem(
-                                  value: 'COMPOUND', child: Text('Compound')),
-                              DropdownMenuItem(
-                                  value: 'PROFIT_BASED',
-                                  child: Text('Profit-based')),
-                            ],
-                            onChanged: _isSubmitting
-                                ? null
-                                : (val) => setState(() => _returnType = val!),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: _riskLevel,
-                      decoration: const InputDecoration(
-                          labelText: 'Risk Level',
-                          border: OutlineInputBorder()),
-                      items: const [
-                        DropdownMenuItem(value: 'LOW', child: Text('Low')),
-                        DropdownMenuItem(
-                            value: 'MEDIUM', child: Text('Medium')),
-                        DropdownMenuItem(value: 'HIGH', child: Text('High')),
-                      ],
+                      }).toList(),
                       onChanged: _isSubmitting
                           ? null
-                          : (val) => setState(() => _riskLevel = val!),
+                          : (val) => setState(() => _selectedGroupId = val),
+                      validator: (val) =>
+                          val == null ? 'Target group is required' : null,
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _nameController,
+                  enabled: !_isSubmitting,
+                  decoration: const InputDecoration(
+                      labelText: 'Investment Name',
+                      hintText: 'e.g. Farming Project Block A',
+                      border: OutlineInputBorder()),
+                  validator: (val) =>
+                      (val == null || val.isEmpty) ? 'Name is required' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descriptionController,
+                  enabled: !_isSubmitting,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                      labelText: 'Description',
+                      hintText: 'e.g. Details about the project activities',
+                      border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _categoryController,
+                        enabled: !_isSubmitting,
+                        decoration: const InputDecoration(
+                            labelText: 'Category',
+                            hintText: 'e.g. Agriculture',
+                            border: OutlineInputBorder()),
+                      ),
                     ),
-                    _buildSectionHeader('Timeline'),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _durationController,
-                            enabled: !_isSubmitting,
-                            decoration: const InputDecoration(
-                                labelText: 'Duration (Months)',
-                                border: OutlineInputBorder()),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _lockInPeriodController,
-                            enabled: !_isSubmitting,
-                            decoration: const InputDecoration(
-                                labelText: 'Lock-in (Months)',
-                                border: OutlineInputBorder()),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _purposeController,
+                        enabled: !_isSubmitting,
+                        decoration: const InputDecoration(
+                            labelText: 'Purpose',
+                            hintText: 'e.g. Expand farming',
+                            border: OutlineInputBorder()),
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: _payoutFrequency,
-                      decoration: const InputDecoration(
-                          labelText: 'Payout Frequency',
-                          border: OutlineInputBorder()),
-                      items: const [
-                        DropdownMenuItem(
-                            value: 'MONTHLY', child: Text('Monthly')),
-                        DropdownMenuItem(
-                            value: 'QUARTERLY', child: Text('Quarterly')),
-                        DropdownMenuItem(
-                            value: 'ANNUALLY', child: Text('Annually')),
-                        DropdownMenuItem(
-                            value: 'AT_MATURITY', child: Text('At Maturity')),
-                      ],
-                      onChanged: _isSubmitting
-                          ? null
-                          : (val) => setState(() => _payoutFrequency = val!),
-                    ),
-                    const SizedBox(height: 32),
                   ],
                 ),
-              ),
-            ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed:
-                        _isSubmitting ? null : () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 12),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _businessCaseController,
+                  enabled: !_isSubmitting,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                      labelText: 'Business Case (Optional)',
+                      hintText: 'e.g. High demand for crop X expected',
+                      border: OutlineInputBorder()),
+                ),
+                _buildSectionHeader('Financials'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _amountController,
+                        enabled: !_isSubmitting,
+                        decoration: const InputDecoration(
+                            labelText: 'Principal Amount (KES)',
+                            hintText: 'e.g. 50000',
+                            border: OutlineInputBorder()),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return 'Required';
+                          if (double.tryParse(val) == null) {
+                            return 'Invalid';
+                          }
+                          return null;
+                        },
+                      ),
                     ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text('Submit Proposal'),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _minCapitalController,
+                        enabled: !_isSubmitting,
+                        decoration: const InputDecoration(
+                            labelText: 'Min Capital (Optional)',
+                            hintText: 'e.g. 10000',
+                            border: OutlineInputBorder()),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _roiController,
+                        enabled: !_isSubmitting,
+                        decoration: const InputDecoration(
+                            labelText: 'Expected ROI (%)',
+                            hintText: 'e.g. 12.5',
+                            border: OutlineInputBorder()),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return 'Required';
+                          if (double.tryParse(val) == null) {
+                            return 'Invalid';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _returnType,
+                        decoration: const InputDecoration(
+                            labelText: 'Return Type',
+                            border: OutlineInputBorder()),
+                        items: const [
+                          DropdownMenuItem(
+                              value: 'FIXED', child: Text('Fixed')),
+                          DropdownMenuItem(
+                              value: 'VARIABLE', child: Text('Variable')),
+                          DropdownMenuItem(
+                              value: 'COMPOUND', child: Text('Compound')),
+                          DropdownMenuItem(
+                              value: 'PROFIT_BASED',
+                              child: Text('Profit-based')),
+                        ],
+                        onChanged: _isSubmitting
+                            ? null
+                            : (val) => setState(() => _returnType = val!),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: _riskLevel,
+                  decoration: const InputDecoration(
+                      labelText: 'Risk Level', border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: 'LOW', child: Text('Low')),
+                    DropdownMenuItem(value: 'MEDIUM', child: Text('Medium')),
+                    DropdownMenuItem(value: 'HIGH', child: Text('High')),
+                  ],
+                  onChanged: _isSubmitting
+                      ? null
+                      : (val) => setState(() => _riskLevel = val!),
+                ),
+                _buildSectionHeader('Timeline'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _durationController,
+                        enabled: !_isSubmitting,
+                        decoration: const InputDecoration(
+                            labelText: 'Duration (Months)',
+                            hintText: 'e.g. 12',
+                            border: OutlineInputBorder()),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _lockInPeriodController,
+                        enabled: !_isSubmitting,
+                        decoration: const InputDecoration(
+                            labelText: 'Lock-in (Months)',
+                            hintText: 'e.g. 6',
+                            border: OutlineInputBorder()),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  initialValue: _payoutFrequency,
+                  decoration: const InputDecoration(
+                      labelText: 'Payout Frequency',
+                      border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: 'MONTHLY', child: Text('Monthly')),
+                    DropdownMenuItem(
+                        value: 'QUARTERLY', child: Text('Quarterly')),
+                    DropdownMenuItem(
+                        value: 'ANNUALLY', child: Text('Annually')),
+                    DropdownMenuItem(
+                        value: 'AT_MATURITY', child: Text('At Maturity')),
+                  ],
+                  onChanged: _isSubmitting
+                      ? null
+                      : (val) => setState(() => _payoutFrequency = val!),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isSubmitting ? null : _submit,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Submit Proposal'),
+        ),
+      ],
     );
   }
 }
