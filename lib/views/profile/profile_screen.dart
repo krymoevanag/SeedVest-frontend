@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../viewmodels/user_viewmodel.dart';
-import '../../core/network/api_service.dart';
 import '../../core/security/biometric_service.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_button.dart';
@@ -25,7 +24,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isEditing = false;
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
-  final ApiService _apiService = ApiService();
   final BiometricService _biometricService = BiometricService();
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
@@ -69,8 +67,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadBiometricSettings() async {
+    final userViewModel = context.read<UserViewModel>();
     final canAuthenticate = await _biometricService.canAuthenticate();
-    final enabled = await _apiService.isBiometricEnabled();
+    final enabled = await userViewModel.isBiometricEnabled();
     final label = await _biometricService.biometricLabel();
 
     if (!mounted) return;
@@ -82,6 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _toggleBiometric(bool enabled) async {
+    final userViewModel = context.read<UserViewModel>();
     if (enabled) {
       final authenticated = await _biometricService.authenticate(
         reason: 'Authenticate to enable biometric login',
@@ -99,16 +99,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
 
-    await _apiService.setBiometricEnabled(enabled);
+    await userViewModel.setBiometricEnabled(enabled);
     if (!mounted) return;
     setState(() => _biometricEnabled = enabled);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          enabled
-              ? 'Biometric login enabled.'
-              : 'Biometric login disabled.',
+          enabled ? 'Biometric login enabled.' : 'Biometric login disabled.',
         ),
       ),
     );
@@ -207,9 +205,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Future<void> submitChangePassword() async {
             if (!formKey.currentState!.validate()) return;
 
+            final userViewModel = context.read<UserViewModel>();
             setDialogState(() => isSubmitting = true);
             try {
-              final response = await _apiService.changePassword(
+              final response = await userViewModel.changePassword(
                 currentPassword: currentPasswordController.text,
                 newPassword: newPasswordController.text,
                 confirmPassword: confirmPasswordController.text,
@@ -240,7 +239,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Failed to change password. Please try again.'),
+                    content:
+                        Text('Failed to change password. Please try again.'),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -274,8 +274,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           onPressed: () {
                             setDialogState(
-                              () =>
-                                  obscureCurrentPassword = !obscureCurrentPassword,
+                              () => obscureCurrentPassword =
+                                  !obscureCurrentPassword,
                             );
                           },
                         ),
@@ -332,8 +332,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           onPressed: () {
                             setDialogState(
-                              () =>
-                                  obscureConfirmPassword = !obscureConfirmPassword,
+                              () => obscureConfirmPassword =
+                                  !obscureConfirmPassword,
                             );
                           },
                         ),
@@ -354,8 +354,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             actions: [
               TextButton(
-                onPressed:
-                    isSubmitting ? null : () => Navigator.of(dialogContext).pop(),
+                onPressed: isSubmitting
+                    ? null
+                    : () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
@@ -689,12 +690,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.pushNamedAndRemoveUntil(
                     context, '/login', (route) => false);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Account deleted successfully.')),
+                  const SnackBar(
+                      content: Text('Account deleted successfully.')),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Failed to delete account. Please try again.'),
+                    content:
+                        Text('Failed to delete account. Please try again.'),
                     backgroundColor: Colors.red,
                   ),
                 );

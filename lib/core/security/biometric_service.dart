@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:local_auth/local_auth.dart';
 
 class BiometricService {
@@ -36,6 +37,14 @@ class BiometricService {
   Future<bool> authenticate({
     String reason = 'Authenticate to continue',
   }) async {
+    // Check lifecycle state before starting authentication
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    if (lifecycleState != null && lifecycleState != AppLifecycleState.resumed) {
+      debugPrint(
+          'BiometricService: Skipping authentication as app is in state: $lifecycleState');
+      return false;
+    }
+
     try {
       return await _localAuth.authenticate(
         localizedReason: reason,
@@ -45,7 +54,12 @@ class BiometricService {
           sensitiveTransaction: true,
         ),
       );
-    } on PlatformException {
+    } on PlatformException catch (e) {
+      debugPrint(
+          'BiometricService: Authentication error: ${e.code} - ${e.message}');
+      return false;
+    } catch (e) {
+      debugPrint('BiometricService: Unexpected error: $e');
       return false;
     }
   }

@@ -32,27 +32,30 @@ class _SplashScreenState extends State<SplashScreen> {
     final canAuthenticate = await _biometricService.canAuthenticate();
 
     if (biometricEnabled && hasRefreshToken && canAuthenticate) {
-      final authenticated = await _biometricService.authenticate(
-        reason: 'Authenticate to sign in to SeedVest',
-      );
+      final lifecycleState = WidgetsBinding.instance.lifecycleState;
+      if (lifecycleState == AppLifecycleState.resumed) {
+        final authenticated = await _biometricService.authenticate(
+          reason: 'Authenticate to sign in to SeedVest',
+        );
 
-      if (authenticated) {
-        final refreshed = await _apiService.refreshAccessToken();
-        if (refreshed) {
-          if (!mounted) return;
-          final userViewModel = Provider.of<UserViewModel>(
-            context,
-            listen: false,
-          );
-          await userViewModel.fetchProfile();
+        if (authenticated) {
+          final refreshed = await _apiService.refreshAccessToken();
+          if (refreshed) {
+            if (!mounted) return;
+            final userViewModel = Provider.of<UserViewModel>(
+              context,
+              listen: false,
+            );
+            await userViewModel.fetchProfile();
 
-          if (!mounted) return;
-          if (userViewModel.currentUser != null) {
-            Navigator.pushReplacementNamed(context, '/dashboard');
-            return;
+            if (!mounted) return;
+            if (userViewModel.currentUser != null) {
+              Navigator.pushReplacementNamed(context, '/dashboard');
+              return;
+            }
+          } else {
+            await _apiService.clearSessionAndBiometric();
           }
-        } else {
-          await _apiService.clearSessionAndBiometric();
         }
       }
     }

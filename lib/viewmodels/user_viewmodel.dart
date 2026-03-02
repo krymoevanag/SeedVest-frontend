@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../core/network/api_service.dart';
 import '../data/models/user.dart';
 import '../core/services/inactivity_service.dart';
@@ -108,6 +109,32 @@ class UserViewModel extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<Response> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+        confirmPassword: confirmPassword,
+      );
+      return response;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> isBiometricEnabled() async {
+    return await _apiService.isBiometricEnabled();
+  }
+
+  Future<void> setBiometricEnabled(bool enabled) async {
+    await _apiService.setBiometricEnabled(enabled);
   }
 
   // Helper getters for roles

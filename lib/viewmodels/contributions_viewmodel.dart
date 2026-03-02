@@ -57,7 +57,7 @@ class ContributionsViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> initiatePayment(double amount, String phoneNumber,
+  Future<String?> initiatePayment(double amount, String phoneNumber,
       {int? groupId}) async {
     _setLoading(true);
     _paymentError = null;
@@ -65,24 +65,38 @@ class ContributionsViewModel extends ChangeNotifier {
       final response = await _apiService
           .initiateMpesaPayment(amount, phoneNumber, groupId: groupId);
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Payment initiated successfully
-        return true;
+        // Return the CheckoutRequestID if successful
+        return response.data['CheckoutRequestID'];
       }
       _paymentError = _extractErrorMessage(response.data) ??
           'Failed to initiate M-Pesa push.';
-      return false;
+      return null;
     } on DioException catch (e) {
       _paymentError = _extractErrorMessage(e.response?.data) ??
           e.message ??
           'Failed to initiate M-Pesa push.';
       debugPrint('Error initiating payment: ${e.response?.data ?? e.message}');
-      return false;
+      return null;
     } catch (e) {
       _paymentError = 'Failed to initiate M-Pesa push.';
       debugPrint('Error initiating payment: $e');
-      return false;
+      return null;
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<String?> checkMpesaPaymentStatus(String checkoutRequestId) async {
+    try {
+      final response =
+          await _apiService.getMpesaPaymentStatus(checkoutRequestId);
+      if (response.statusCode == 200) {
+        return response.data['status']; // SUCCESS, FAILED, or PENDING
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error checking payment status: $e');
+      return null;
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../../core/theme/colors.dart';
 import '../../core/network/api_service.dart';
 import '../../viewmodels/contributions_viewmodel.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
@@ -449,6 +450,40 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
                 ),
               ],
 
+              if (_mpesaStatusMessage != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _mpesaStatusMessage!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 24),
 
               // Submit Button
@@ -465,10 +500,17 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
     );
   }
 
-  Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
+  String? _mpesaStatusMessage;
 
-    setState(() => _isSubmitting = true);
+  Future<void> _handleSubmit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _mpesaStatusMessage = null;
+    });
 
     final viewModel = context.read<ContributionsViewModel>();
     final dashboardViewModel = context.read<DashboardViewModel>();
@@ -478,18 +520,22 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
     if (_selectedMethod == _methodMpesa) {
       final phone = _normalizeMpesaPhone(_phoneController.text.trim());
 
-      final success = await viewModel.initiatePayment(
+      final checkoutId = await viewModel.initiatePayment(
         amount,
         phone,
         groupId: _selectedGroupId,
       );
 
-      if (!mounted) return;
-      if (success) {
-        messenger.showSnackBar(const SnackBar(
-            content: Text('M-Pesa push initiated. Check your phone.')));
-        _refreshData(viewModel, dashboardViewModel);
-        Navigator.pop(context);
+      if (!mounted) {
+        return;
+      }
+      if (checkoutId != null) {
+        setState(() {
+          _mpesaStatusMessage = 'Push initiated. Please check your phone...';
+        });
+
+        // Start polling for status
+        await _pollMpesaStatus(checkoutId, viewModel, dashboardViewModel);
       } else {
         setState(() => _isSubmitting = false);
         messenger.showSnackBar(
@@ -510,7 +556,9 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
         note: _noteController.text,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       if (success) {
         messenger.showSnackBar(
           const SnackBar(
@@ -529,6 +577,74 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _pollMpesaStatus(
+    String checkoutId,
+    ContributionsViewModel viewModel,
+    DashboardViewModel dashboardViewModel,
+  ) async {
+    int attempts = 0;
+    const maxAttempts = 20; // 20 * 3s = 60s timeout
+    final messenger = ScaffoldMessenger.of(context);
+
+    while (attempts < maxAttempts) {
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) {
+        return;
+      }
+
+      final status = await viewModel.checkMpesaPaymentStatus(checkoutId);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (status == 'SUCCESS') {
+        setState(() {
+          _mpesaStatusMessage = 'Payment successful!';
+        });
+        _refreshData(viewModel, dashboardViewModel);
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      } else if (status == 'FAILED') {
+        setState(() {
+          _isSubmitting = false;
+          _mpesaStatusMessage = 'Payment failed or was cancelled.';
+        });
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('M-Pesa payment failed. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      attempts++;
+      setState(() {
+        _mpesaStatusMessage =
+            'Waiting for confirmation... (${maxAttempts - attempts}s remaining)';
+      });
+    }
+
+    // Timeout
+    if (mounted) {
+      setState(() {
+        _isSubmitting = false;
+        _mpesaStatusMessage =
+            'Confirmation timed out. Please check your balance later.';
+      });
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Payment confirmation timed out.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
   }
 

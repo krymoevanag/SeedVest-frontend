@@ -20,9 +20,7 @@ class ApiService {
         normalizedPath.startsWith('accounts/password-reset/') ||
         normalizedPath.startsWith('accounts/activate/') ||
         normalizedPath.startsWith('token/') ||
-        normalizedPath.startsWith('health/') ||
-        normalizedPath.startsWith('payments/mpesa/pay/') ||
-        normalizedPath.startsWith('payments/mpesa/status/');
+        normalizedPath.startsWith('health/');
   }
 
   String _normalizeMpesaPhone(String phone) {
@@ -70,6 +68,13 @@ class ApiService {
                 key: 'access_token',
                 value: response.data['access'],
               );
+
+              if (response.data['refresh'] != null) {
+                await storage.write(
+                  key: 'refresh_token',
+                  value: response.data['refresh'],
+                );
+              }
 
               final opts = Options(
                 method: e.requestOptions.method,
@@ -303,6 +308,10 @@ class ApiService {
       'phone_number': normalizedPhone,
       if (groupId != null) 'group_id': groupId,
     });
+  }
+
+  Future<Response> getMpesaPaymentStatus(String checkoutRequestId) async {
+    return await dio.get('payments/mpesa/status/$checkoutRequestId/');
   }
 
   Future<Response> getContributions() async {
