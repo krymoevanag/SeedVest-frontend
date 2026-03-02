@@ -11,6 +11,7 @@ class User {
   final double totalSavings;
   final double totalPenalties;
   final String? profilePicture;
+  final List<int> groupIds;
 
   User({
     required this.id,
@@ -25,6 +26,7 @@ class User {
     this.totalSavings = 0.0,
     this.totalPenalties = 0.0,
     this.profilePicture,
+    this.groupIds = const [],
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -42,6 +44,7 @@ class User {
       totalSavings: (json['total_savings'] ?? 0.0).toDouble(),
       totalPenalties: (json['total_penalties'] ?? 0.0).toDouble(),
       profilePicture: json['profile_picture'],
+      groupIds: List<int>.from(json['group_ids'] ?? []),
     );
   }
 
@@ -59,6 +62,7 @@ class User {
       'total_savings': totalSavings,
       'total_penalties': totalPenalties,
       'profile_picture': profilePicture,
+      'group_ids': groupIds,
     };
   }
 }

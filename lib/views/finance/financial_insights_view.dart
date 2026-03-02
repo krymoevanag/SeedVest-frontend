@@ -29,7 +29,10 @@ class _FinancialInsightsViewState extends State<FinancialInsightsView> {
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+              colors: [
+                AppColors.primary,
+                AppColors.primary.withValues(alpha: 0.8)
+              ],
             ),
           ),
         ),
@@ -59,16 +62,14 @@ class _FinancialInsightsViewState extends State<FinancialInsightsView> {
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
-                ...summaries.map((s) => _buildSummaryCard(s)).toList(),
+                ...summaries.map((s) => _buildSummaryCard(s)),
                 const SizedBox(height: 24),
                 const Text(
                   'Recommendations',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
-                ...recommendations
-                    .map((r) => _buildRecommendationCard(r))
-                    .toList(),
+                ...recommendations.map((r) => _buildRecommendationCard(r)),
               ],
             ),
           );
@@ -93,7 +94,7 @@ class _FinancialInsightsViewState extends State<FinancialInsightsView> {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: AppColors.primary.withOpacity(0.1),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
               child: Icon(Icons.analytics_outlined, color: AppColors.primary),
             ),
             const SizedBox(width: 16),

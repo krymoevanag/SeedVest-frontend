@@ -38,7 +38,7 @@ class AnalyticsView extends StatelessWidget {
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                     ),
                   ),
                 ],
@@ -46,7 +46,8 @@ class AnalyticsView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 32),
-          Text('Contribution Distribution', style: Theme.of(context).textTheme.titleLarge),
+          Text('Contribution Distribution',
+              style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           CustomCard(
             height: 250,
@@ -60,21 +61,24 @@ class AnalyticsView extends StatelessWidget {
                     value: 60,
                     title: 'Monthly',
                     radius: 50,
-                    titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    titleStyle: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   PieChartSectionData(
                     color: AppColors.secondary,
                     value: 25,
                     title: 'Special',
                     radius: 50,
-                    titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    titleStyle: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   PieChartSectionData(
                     color: AppColors.accent,
                     value: 15,
                     title: 'Fine',
                     radius: 50,
-                    titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    titleStyle: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -85,7 +89,8 @@ class AnalyticsView extends StatelessWidget {
             child: ListTile(
               leading: Icon(Icons.info_outline, color: AppColors.primary),
               title: Text('Growth Projection'),
-              subtitle: Text('Based on current contribution rates, group wealth is expected to grow by 12% next quarter.'),
+              subtitle: Text(
+                  'Based on current contribution rates, group wealth is expected to grow by 12% next quarter.'),
             ),
           ),
         ],

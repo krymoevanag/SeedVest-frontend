@@ -58,7 +58,7 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                                 contentPadding: EdgeInsets.zero,
                                 leading: CircleAvatar(
                                   backgroundColor:
-                                      AppColors.primary.withOpacity(0.1),
+                                      AppColors.primary.withValues(alpha: 0.1),
                                   child: Text(user.fullName.isNotEmpty
                                       ? user.fullName.substring(0, 1)
                                       : '?'),
@@ -100,11 +100,12 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                                     child: CustomButton(
                                       text: 'Approve',
                                       onPressed: () async {
+                                        final messenger =
+                                            ScaffoldMessenger.of(context);
                                         bool success = await viewModel
                                             .approveUser(user.id);
-                                        if (success) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
+                                        if (success && mounted) {
+                                          messenger.showSnackBar(
                                             SnackBar(
                                                 content: Text(
                                                     '${user.fullName} approved!')),
@@ -160,11 +161,13 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+              navigator.pop();
               bool success =
                   await context.read<GovernanceViewModel>().deleteUser(userId);
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
+              if (success && mounted) {
+                messenger.showSnackBar(
                   SnackBar(content: Text('$userName deleted successfully.')),
                 );
               }
@@ -199,9 +202,9 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(
         status,
@@ -239,12 +242,15 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                 );
                 return;
               }
-              Navigator.pop(context);
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+
+              navigator.pop();
               bool success = await context
                   .read<GovernanceViewModel>()
                   .rejectUser(userId, reason);
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
+              if (success && mounted) {
+                messenger.showSnackBar(
                   SnackBar(content: Text('$userName rejected.')),
                 );
               }

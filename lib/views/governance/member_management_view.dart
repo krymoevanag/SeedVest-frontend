@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/governance_viewmodel.dart';
+import '../../viewmodels/contributions_viewmodel.dart';
+import '../../data/models/user.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_card.dart';
 
@@ -101,18 +103,43 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                     style: const TextStyle(
                                         fontWeight: FontWeight.bold),
                                   ),
-                                  subtitle: Text(
-                                    'Balance: ${_currencyFormat.format(balance)}',
-                                    style: TextStyle(
-                                      color: balance < 0
-                                          ? Colors.red
-                                          : Colors.green[700],
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Balance: ${_currencyFormat.format(balance)}',
+                                        style: TextStyle(
+                                          color: balance < 0
+                                              ? Colors.red
+                                              : Colors.green[700],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      if (user.groupIds.isNotEmpty)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 4),
+                                          child: Text(
+                                            'Groups: ${user.groupIds.map((id) {
+                                              final group = viewModel.groups
+                                                  .firstWhere(
+                                                      (g) => g['id'] == id,
+                                                      orElse: () => null);
+                                              return group != null
+                                                  ? group['name']
+                                                  : 'ID: $id';
+                                            }).join(", ")}',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600]),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   leading: CircleAvatar(
-                                    backgroundColor:
-                                        AppColors.primary.withOpacity(0.1),
+                                    backgroundColor: AppColors.primary
+                                        .withValues(alpha: 0.1),
                                     backgroundImage: user.profilePicture != null
                                         ? NetworkImage(user.profilePicture!)
                                         : null,
@@ -137,6 +164,14 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceAround,
                                             children: [
+                                              _buildActionButton(
+                                                icon: Icons.add_circle_outline,
+                                                label: 'Contrib',
+                                                onPressed: () =>
+                                                    _showAddContributionDialog(
+                                                        context, user),
+                                                color: Colors.green,
+                                              ),
                                               _buildActionButton(
                                                 icon: Icons.edit_outlined,
                                                 label: 'Role',
@@ -169,6 +204,14 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                                         context, user),
                                                 color: Colors.orange.shade800,
                                               ),
+                                              _buildActionButton(
+                                                icon: Icons.group_add_outlined,
+                                                label: 'Group',
+                                                onPressed: () =>
+                                                    _showAssignGroupDialog(
+                                                        context, user),
+                                                color: Colors.blue.shade700,
+                                              ),
                                             ],
                                           ),
                                         ],
@@ -184,6 +227,179 @@ class _MemberManagementViewState extends State<MemberManagementView> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showAddContributionDialog(BuildContext context, User user) {
+    final amountController = TextEditingController();
+    DateTime selectedDate = DateTime.now();
+    int? selectedGroupId;
+    bool isSubmitting = false;
+
+    // Filter groups for this user
+    final viewModel = context.read<GovernanceViewModel>();
+    final userGroups =
+        viewModel.groups.where((g) => user.groupIds.contains(g['id'])).toList();
+
+    if (userGroups.length == 1) {
+      selectedGroupId = userGroups.first['id'];
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Add Contribution for ${user.fullName}'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Select Group:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    if (userGroups.isEmpty)
+                      const Text('User is not assigned to any groups.',
+                          style: TextStyle(color: Colors.red))
+                    else
+                      Wrap(
+                        spacing: 8,
+                        children: userGroups.map((g) {
+                          final isSelected = selectedGroupId == g['id'];
+                          return ChoiceChip(
+                            label: Text(g['name'] ?? 'Group ${g['id']}'),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setDialogState(() {
+                                selectedGroupId = selected ? g['id'] : null;
+                              });
+                            },
+                            selectedColor:
+                                AppColors.primary.withValues(alpha: 0.2),
+                            checkmarkColor: AppColors.primary,
+                          );
+                        }).toList(),
+                      ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: amountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Amount (KES)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.payments),
+                      ),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: dialogContext,
+                          initialDate: selectedDate,
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) {
+                          setDialogState(() => selectedDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Payment Date',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          DateFormat('dd MMM yyyy').format(selectedDate),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (selectedGroupId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Please select a group')),
+                            );
+                            return;
+                          }
+                          final amount = double.tryParse(amountController.text);
+                          if (amount == null || amount <= 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Please enter a valid amount')),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSubmitting = true);
+
+                          // Use ContributionsViewModel to add contribution
+                          final contribViewModel =
+                              context.read<ContributionsViewModel>();
+                          final errorMessage =
+                              await contribViewModel.adminAddContribution(
+                            userId: user.id,
+                            groupId: selectedGroupId!,
+                            amount: amount,
+                            paidDate:
+                                DateFormat('yyyy-MM-dd').format(selectedDate),
+                          );
+
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+
+                          if (context.mounted) {
+                            // Refresh the member view to show new balance
+                            context
+                                .read<GovernanceViewModel>()
+                                .fetchApprovedUsers();
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(errorMessage == null
+                                    ? 'Contribution added successfully!'
+                                    : 'Failed: $errorMessage'),
+                                backgroundColor: errorMessage == null
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Add',
+                          style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -225,29 +441,30 @@ class _MemberManagementViewState extends State<MemberManagementView> {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  RadioListTile<String>(
-                    title: const Text('Admin'),
-                    subtitle: const Text('Full dashboard access'),
-                    value: 'ADMIN',
+                  RadioGroup<String>(
                     groupValue: selectedRole,
                     onChanged: (val) =>
                         setDialogState(() => selectedRole = val!),
-                  ),
-                  RadioListTile<String>(
-                    title: const Text('Treasurer'),
-                    subtitle: const Text('Financial management access'),
-                    value: 'TREASURER',
-                    groupValue: selectedRole,
-                    onChanged: (val) =>
-                        setDialogState(() => selectedRole = val!),
-                  ),
-                  RadioListTile<String>(
-                    title: const Text('Member'),
-                    subtitle: const Text('Standard user access'),
-                    value: 'MEMBER',
-                    groupValue: selectedRole,
-                    onChanged: (val) =>
-                        setDialogState(() => selectedRole = val!),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        RadioListTile<String>(
+                          title: const Text('Admin'),
+                          subtitle: const Text('Full dashboard access'),
+                          value: 'ADMIN',
+                        ),
+                        RadioListTile<String>(
+                          title: const Text('Treasurer'),
+                          subtitle: const Text('Financial management access'),
+                          value: 'TREASURER',
+                        ),
+                        RadioListTile<String>(
+                          title: const Text('Member'),
+                          subtitle: const Text('Standard user access'),
+                          value: 'MEMBER',
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -261,11 +478,13 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                       ? null
                       : () async {
                           final viewModel = context.read<GovernanceViewModel>();
+                          final navigator = Navigator.of(context);
+                          final messenger = ScaffoldMessenger.of(this.context);
                           final success =
                               await viewModel.updateRole(user.id, selectedRole);
                           if (mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(this.context).showSnackBar(
+                            navigator.pop();
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text(success
                                     ? 'Role updated successfully'
@@ -345,11 +564,12 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                       : () async {
                           if (!formKey.currentState!.validate()) return;
 
+                          final messenger = ScaffoldMessenger.of(this.context);
                           final amountText =
                               amountController.text.replaceAll(',', '');
                           final amount = double.tryParse(amountText);
                           if (amount == null) {
-                            ScaffoldMessenger.of(this.context).showSnackBar(
+                            messenger.showSnackBar(
                               const SnackBar(
                                   content: Text('Invalid amount'),
                                   backgroundColor: Colors.red),
@@ -360,6 +580,7 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                           setDialogState(() => isSubmitting = true);
 
                           final viewModel = context.read<GovernanceViewModel>();
+                          final navigator = Navigator.of(context);
                           final success = await viewModel.issuePenalty(
                             userId: user.id,
                             amount: amount,
@@ -367,10 +588,10 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                           );
 
                           if (mounted) {
-                            if (Navigator.canPop(context)) {
-                              Navigator.pop(context);
+                            if (navigator.canPop()) {
+                              navigator.pop();
                             }
-                            ScaffoldMessenger.of(this.context).showSnackBar(
+                            messenger.showSnackBar(
                               SnackBar(
                                 content: Text(success
                                     ? 'Penalty issued successfully'
@@ -454,11 +675,13 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                 if (!formKey.currentState!.validate()) return;
 
                 final viewModel = context.read<GovernanceViewModel>();
+                final navigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(this.context);
                 final success = await viewModel.deleteUser(user.id);
 
                 if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(this.context).showSnackBar(
+                  navigator.pop();
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text(success
                           ? 'Member deleted successfully'
@@ -516,14 +739,16 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                 ElevatedButton(
                   onPressed: () async {
                     final viewModel = context.read<GovernanceViewModel>();
+                    final navigator = Navigator.of(context);
+                    final messenger = ScaffoldMessenger.of(this.context);
                     final success = await viewModel.resetFinanceHistory(
                       user.id,
                       resetStatus,
                     );
 
                     if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(this.context).showSnackBar(
+                      navigator.pop();
+                      messenger.showSnackBar(
                         SnackBar(
                           content: Text(success
                               ? 'Financial history reset successfully'
@@ -538,6 +763,116 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                     backgroundColor: Colors.orange.shade800,
                   ),
                   child: const Text('Confirm Reset'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAssignGroupDialog(BuildContext context, User user) {
+    int? selectedGroupId;
+    String selectedRole = 'MEMBER';
+    bool isSubmitting = false;
+
+    final viewModel = context.read<GovernanceViewModel>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Assign ${user.fullName} to Group'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Select Group:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int>(
+                    initialValue: selectedGroupId,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    items: viewModel.groups.map<DropdownMenuItem<int>>((g) {
+                      return DropdownMenuItem<int>(
+                        value: g['id'],
+                        child: Text(g['name'] ?? 'Group ${g['id']}'),
+                      );
+                    }).toList(),
+                    onChanged: (val) =>
+                        setDialogState(() => selectedGroupId = val),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Select Role:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedRole,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'MEMBER', child: Text('Member')),
+                      DropdownMenuItem(
+                          value: 'TREASURER', child: Text('Treasurer')),
+                    ],
+                    onChanged: (val) =>
+                        setDialogState(() => selectedRole = val!),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting || selectedGroupId == null
+                      ? null
+                      : () async {
+                          setDialogState(() => isSubmitting = true);
+
+                          final success = await viewModel.assignUserToGroup(
+                            userId: user.id,
+                            groupId: selectedGroupId!,
+                            role: selectedRole,
+                          );
+
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success
+                                    ? 'Member assigned to group successfully!'
+                                    : 'Failed to assign member to group'),
+                                backgroundColor:
+                                    success ? Colors.green : Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Assign',
+                          style: TextStyle(color: Colors.white)),
                 ),
               ],
             );

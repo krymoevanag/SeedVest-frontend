@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/network/api_service.dart';
 import '../data/models/user.dart';
+import '../core/services/inactivity_service.dart';
 
 class UserViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -17,6 +18,8 @@ class UserViewModel extends ChangeNotifier {
       final response = await _apiService.dio.get('accounts/users/me/');
       if (response.statusCode == 200) {
         _currentUser = User.fromJson(response.data);
+        // Start inactivity service once profile is successfully loaded
+        InactivityService.instance.start();
       }
     } catch (e) {
       debugPrint('Error fetching profile: $e');
@@ -81,6 +84,8 @@ class UserViewModel extends ChangeNotifier {
   Future<void> logout() async {
     _setLoading(true);
     try {
+      // Stop inactivity service on logout
+      InactivityService.instance.stop();
       await _apiService.logout();
       _currentUser = null;
     } finally {

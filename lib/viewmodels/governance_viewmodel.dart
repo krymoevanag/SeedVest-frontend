@@ -83,6 +83,7 @@ class GovernanceViewModel extends ChangeNotifier {
       if (response.statusCode == 200) {
         final List data = response.data;
         _approvedUsers = data.map((e) => User.fromJson(e)).toList();
+        await fetchGroups(); // Ensure groups are loaded for lookup
         notifyListeners();
       }
     } catch (e) {
@@ -266,6 +267,31 @@ class GovernanceViewModel extends ChangeNotifier {
       return false;
     } catch (e) {
       debugPrint('Error creating investment: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> assignUserToGroup({
+    required int userId,
+    required int groupId,
+    required String role,
+  }) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.assignUserToGroup({
+        'user': userId,
+        'group': groupId,
+        'role': role,
+      });
+      if (response.statusCode == 201) {
+        await fetchApprovedUsers(); // Refresh the list
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error assigning user to group: $e');
       return false;
     } finally {
       _setLoading(false);

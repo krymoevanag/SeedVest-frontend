@@ -243,7 +243,9 @@ class _SavingsTargetsViewState extends State<SavingsTargetsView> {
                             if (success && dialogContext.mounted) {
                               Navigator.pop(dialogContext);
                             } else {
-                              setDialogState(() => isSubmitting = false);
+                              if (dialogContext.mounted) {
+                                setDialogState(() => isSubmitting = false);
+                              }
                             }
                           }
                         },

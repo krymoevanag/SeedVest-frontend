@@ -32,6 +32,23 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _loadBiometricState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkSessionExpired();
+    });
+  }
+
+  void _checkSessionExpired() {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['session_expired'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Session expired due to inactivity. Please login again.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   @override

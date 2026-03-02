@@ -43,14 +43,17 @@ class _PenaltiesViewState extends State<PenaltiesView> {
                       child: ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(
-                          backgroundColor: AppColors.error.withOpacity(0.1),
-                          child: const Icon(Icons.gavel, color: AppColors.error),
+                          backgroundColor:
+                              AppColors.error.withValues(alpha: 0.1),
+                          child:
+                              const Icon(Icons.gavel, color: AppColors.error),
                         ),
                         title: Text(
                           penalty.reason,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text(DateFormat('MMM dd, yyyy').format(penalty.date)),
+                        subtitle: Text(
+                            DateFormat('MMM dd, yyyy').format(penalty.date)),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -65,7 +68,9 @@ class _PenaltiesViewState extends State<PenaltiesView> {
                             Text(
                               penalty.status,
                               style: TextStyle(
-                                color: penalty.status == 'PAID' ? Colors.green : Colors.red,
+                                color: penalty.status == 'PAID'
+                                    ? Colors.green
+                                    : Colors.red,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),

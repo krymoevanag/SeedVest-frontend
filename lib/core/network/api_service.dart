@@ -294,13 +294,14 @@ class ApiService {
   // Finance & Payments
   // ======================
 
-  Future<Response> initiateMpesaPayment(
-      double amount, String phoneNumber) async {
+  Future<Response> initiateMpesaPayment(double amount, String phoneNumber,
+      {int? groupId}) async {
     final normalizedPhone = _normalizeMpesaPhone(phoneNumber);
     return await dio.post('payments/mpesa/pay/', data: {
       'amount': amount,
       'phone': normalizedPhone,
       'phone_number': normalizedPhone,
+      if (groupId != null) 'group_id': groupId,
     });
   }
 
@@ -487,5 +488,47 @@ class ApiService {
 
   Future<Response> getGroups() async {
     return await dio.get('groups/groups/');
+  }
+
+  Future<Response> getAdminMemberships({int? groupId, String? search}) async {
+    return await dio.get('finance/admin-member-list/', queryParameters: {
+      if (groupId != null) 'group_id': groupId,
+      if (search != null && search.isNotEmpty) 'search': search,
+    });
+  }
+
+  Future<Response> getAdminGroupSummary(int groupId) async {
+    return await dio.get('finance/admin-group-summary/', queryParameters: {
+      'group_id': groupId,
+    });
+  }
+
+  Future<Response> getAutoSaveHistory() async {
+    return await dio.get('finance/auto-save-history/');
+  }
+
+  Future<Response> triggerAutoSave(
+      {String action = 'generate', bool dryRun = false}) async {
+    return await dio.post('finance/trigger-auto-save/', data: {
+      'action': action,
+      'dry_run': dryRun,
+    });
+  }
+
+  Future<Response> updateGroup(int groupId, Map<String, dynamic> data) async {
+    return await dio.patch('groups/groups/$groupId/', data: data);
+  }
+
+  Future<Response> getMemberships() async {
+    return await dio.get('groups/memberships/');
+  }
+
+  Future<Response> updateMembership(
+      int membershipId, Map<String, dynamic> data) async {
+    return await dio.patch('groups/memberships/$membershipId/', data: data);
+  }
+
+  Future<Response> assignUserToGroup(Map<String, dynamic> data) async {
+    return await dio.post('groups/memberships/', data: data);
   }
 }

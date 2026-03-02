@@ -7,6 +7,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'core/theme/app_theme.dart';
 import 'core/cache/cache_service.dart';
+import 'core/services/inactivity_service.dart';
+import 'core/theme/colors.dart';
 import 'views/auth/splash_screen.dart';
 import 'views/auth/onboarding_screen.dart';
 import 'views/auth/login_screen.dart';
@@ -39,6 +41,7 @@ import 'views/finance/savings_targets_view.dart';
 import 'views/support/help_screen.dart';
 import 'views/support/terms_conditions_screen.dart';
 import 'views/support/about_us_screen.dart';
+import 'views/widgets/inactivity_detector.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -84,11 +87,128 @@ class SeedVestApp extends StatefulWidget {
 class _SeedVestAppState extends State<SeedVestApp> {
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _sub;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
     super.initState();
     _initDeepLinks();
+    _setupInactivity();
+  }
+
+  void _setupInactivity() {
+    final svc = InactivityService.instance;
+    svc.onWarning = _showInactivityWarning;
+    svc.onTimeout = _performAutoLogout;
+  }
+
+  void _showInactivityWarning() {
+    final context = _navigatorKey.currentContext;
+    if (context == null) return;
+
+    int secondsLeft = InactivityService.warningDuration.inSeconds;
+    Timer? countdownTimer;
+    bool dialogOpen = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        dialogOpen = true;
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+              if (secondsLeft <= 1) {
+                t.cancel();
+                if (dialogOpen && dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+                return;
+              }
+              if (dialogContext.mounted) {
+                setDialogState(() => secondsLeft--);
+              }
+            });
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  Icon(Icons.access_time_filled,
+                      color: Colors.orange.shade700, size: 28),
+                  const SizedBox(width: 10),
+                  const Text('Still there?'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                      'You have been inactive for a while. For your security, you will be logged out in:'),
+                  const SizedBox(height: 20),
+                  Text(
+                    '$secondsLeft',
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: secondsLeft <= 10
+                          ? Colors.red
+                          : Colors.orange.shade700,
+                    ),
+                  ),
+                  Text('second${secondsLeft == 1 ? '' : 's'}',
+                      style: TextStyle(color: Colors.grey.shade600)),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    countdownTimer?.cancel();
+                    dialogOpen = false;
+                    Navigator.of(dialogContext).pop();
+                    _performAutoLogout();
+                  },
+                  child: const Text('Log Out',
+                      style: TextStyle(color: Colors.red)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    countdownTimer?.cancel();
+                    dialogOpen = false;
+                    Navigator.of(dialogContext).pop();
+                    InactivityService.instance.resetTimer();
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary),
+                  child: const Text('Stay Logged In',
+                      style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      countdownTimer?.cancel();
+      dialogOpen = false;
+    });
+  }
+
+  Future<void> _performAutoLogout() async {
+    final context = _navigatorKey.currentContext;
+    if (context == null) return;
+
+    final userViewModel = context.read<UserViewModel>();
+    await userViewModel.logout();
+
+    if (_navigatorKey.currentState != null) {
+      _navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        '/login',
+        (_) => false,
+        arguments: {'session_expired': true},
+      );
+    }
   }
 
   Future<void> _initDeepLinks() async {
@@ -112,8 +232,6 @@ class _SeedVestAppState extends State<SeedVestApp> {
   }
 
   void _handleDeepLink(Uri uri) {
-    // Expected format:
-    // seedvest://reset-password/<uid>/<token>
     debugPrint('Deep link received: $uri');
 
     if (uri.scheme == 'seedvest' && uri.host == 'reset-password') {
@@ -121,10 +239,9 @@ class _SeedVestAppState extends State<SeedVestApp> {
         final uid = uri.pathSegments[0];
         final token = uri.pathSegments[1];
 
-        // Defer navigation to ensure the widget tree and navigator are ready
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            Navigator.of(context).pushNamed(
+            _navigatorKey.currentState?.pushNamed(
               '/reset-password',
               arguments: {
                 'uid': uid,
@@ -133,8 +250,6 @@ class _SeedVestAppState extends State<SeedVestApp> {
             );
           }
         });
-      } else {
-        debugPrint('Deep link missing uid/token segments: ${uri.pathSegments}');
       }
     }
   }
@@ -148,10 +263,16 @@ class _SeedVestAppState extends State<SeedVestApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'SeedVest',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialRoute: '/',
+      builder: (context, child) {
+        return InactivityDetector(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       routes: {
         '/': (context) => const SplashScreen(),
         '/onboarding': (context) => const OnboardingScreen(),
@@ -185,11 +306,8 @@ class _SeedVestAppState extends State<SeedVestApp> {
         '/help': (context) => const HelpScreen(),
         '/terms': (context) => const TermsConditionsScreen(),
         '/about': (context) => const AboutUsScreen(),
-
-        // 🔥 Reset Password Route
         '/reset-password': (context) {
           final args = ModalRoute.of(context)!.settings.arguments as Map;
-
           return ResetPasswordScreen(
             uid: args['uid'],
             token: args['token'],

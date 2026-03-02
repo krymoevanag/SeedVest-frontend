@@ -57,12 +57,13 @@ class ContributionsViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> initiatePayment(double amount, String phoneNumber) async {
+  Future<bool> initiatePayment(double amount, String phoneNumber,
+      {int? groupId}) async {
     _setLoading(true);
     _paymentError = null;
     try {
-      final response =
-          await _apiService.initiateMpesaPayment(amount, phoneNumber);
+      final response = await _apiService
+          .initiateMpesaPayment(amount, phoneNumber, groupId: groupId);
       if (response.statusCode == 200 || response.statusCode == 201) {
         // Payment initiated successfully
         return true;

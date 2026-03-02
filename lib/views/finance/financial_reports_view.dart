@@ -83,7 +83,7 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
           Consumer<GovernanceViewModel>(
             builder: (context, gViewModel, child) {
               return DropdownButtonFormField<int>(
-                value: _selectedGroupId,
+                initialValue: _selectedGroupId,
                 decoration: const InputDecoration(labelText: 'Select Group'),
                 items: gViewModel.groups.map((g) {
                   return DropdownMenuItem<int>(
@@ -103,7 +103,7 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: _selectedMonth,
+                  initialValue: _selectedMonth,
                   decoration: const InputDecoration(labelText: 'Month'),
                   items: List.generate(12, (index) => index + 1).map((m) {
                     return DropdownMenuItem<int>(
@@ -120,7 +120,7 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: _selectedYear,
+                  initialValue: _selectedYear,
                   decoration: const InputDecoration(labelText: 'Year'),
                   items: [2024, 2025, 2026].map((y) {
                     return DropdownMenuItem<int>(
@@ -223,7 +223,7 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: color),

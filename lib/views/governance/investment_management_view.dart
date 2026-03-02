@@ -49,7 +49,7 @@ class _InvestmentManagementViewState extends State<InvestmentManagementView> {
                     Consumer<GovernanceViewModel>(
                       builder: (context, viewModel, child) {
                         return DropdownButtonFormField<int>(
-                          value: selectedGroupId,
+                          initialValue: selectedGroupId,
                           decoration:
                               const InputDecoration(labelText: 'Target Group'),
                           items: viewModel.groups.map((g) {
@@ -91,6 +91,7 @@ class _InvestmentManagementViewState extends State<InvestmentManagementView> {
                   onPressed: () async {
                     if (selectedGroupId != null &&
                         titleController.text.isNotEmpty) {
+                      final navigator = Navigator.of(context);
                       final success = await context
                           .read<GovernanceViewModel>()
                           .createInvestment({
@@ -103,7 +104,9 @@ class _InvestmentManagementViewState extends State<InvestmentManagementView> {
                         'start_date':
                             DateTime.now().toIso8601String().split('T')[0],
                       });
-                      if (success && mounted) Navigator.pop(context);
+                      if (success && mounted) {
+                        navigator.pop();
+                      }
                     }
                   },
                   child: const Text('Create'),

@@ -5,6 +5,7 @@ import '../../viewmodels/user_viewmodel.dart';
 import '../../core/theme/colors.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
 import '../widgets/custom_card.dart';
+import '../widgets/contribution_bottom_sheet.dart';
 
 class MemberDashboard extends StatefulWidget {
   const MemberDashboard({super.key});
@@ -91,7 +92,17 @@ class _MemberDashboardState extends State<MemberDashboard> {
                     title: 'Contribute',
                     icon: Icons.add_circle_outline,
                     color: AppColors.primary,
-                    onTap: () {},
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(24)),
+                        ),
+                        builder: (context) => const ContributionBottomSheet(),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 16),

@@ -269,12 +269,28 @@ class _ContributionManagementViewState
                 setDialogState(() {
                   members = data['members'] ?? [];
                   groups = data['groups'] ?? [];
-                  if (groups.length == 1) {
-                    selectedGroupId = groups.first['id'];
-                  }
                   isLoadingData = false;
                 });
               });
+            }
+
+            // Find selected member's group IDs to filter the group dropdown
+            List<int> memberGroupIds = [];
+            if (selectedUserId != null) {
+              final member = members.firstWhere(
+                  (m) => m['id'] == selectedUserId,
+                  orElse: () => {});
+              if (member.containsKey('group_ids')) {
+                memberGroupIds = List<int>.from(member['group_ids']);
+              }
+            }
+
+            final filteredGroups =
+                groups.where((g) => memberGroupIds.contains(g['id'])).toList();
+
+            // Auto-select if only one group
+            if (filteredGroups.length == 1 && selectedGroupId == null) {
+              selectedGroupId = filteredGroups.first['id'];
             }
 
             return AlertDialog(
@@ -310,13 +326,17 @@ class _ContributionManagementViewState
                               );
                             }).toList(),
                             onChanged: (val) {
-                              setDialogState(() => selectedUserId = val);
+                              setDialogState(() {
+                                selectedUserId = val;
+                                selectedGroupId =
+                                    null; // Reset group selection when member changes
+                              });
                             },
                           ),
                           const SizedBox(height: 16),
 
-                          // Group dropdown (only show if multiple groups)
-                          if (groups.length > 1) ...[
+                          // Group dropdown (only show if multiple groups for this member)
+                          if (filteredGroups.length > 1) ...[
                             DropdownButtonFormField<int>(
                               decoration: const InputDecoration(
                                 labelText: 'Select Group',
@@ -325,7 +345,7 @@ class _ContributionManagementViewState
                               ),
                               initialValue: selectedGroupId,
                               hint: const Text('Choose a group'),
-                              items: groups.map((g) {
+                              items: filteredGroups.map((g) {
                                 return DropdownMenuItem<int>(
                                   value: g['id'],
                                   child: Text(g['name'] ?? 'Group ${g['id']}'),

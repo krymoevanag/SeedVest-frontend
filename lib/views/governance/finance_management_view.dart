@@ -1,101 +1,598 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
+import '../../viewmodels/finance_viewmodel.dart';
+import '../../viewmodels/governance_viewmodel.dart';
+import '../../data/models/membership.dart';
 import '../widgets/custom_card.dart';
+import 'package:intl/intl.dart';
+import 'group_settings_view.dart';
 
-class FinanceManagementView extends StatelessWidget {
+class FinanceManagementView extends StatefulWidget {
   const FinanceManagementView({super.key});
+
+  @override
+  State<FinanceManagementView> createState() => _FinanceManagementViewState();
+}
+
+class _FinanceManagementViewState extends State<FinanceManagementView> {
+  final TextEditingController _searchController = TextEditingController();
+  final NumberFormat _currencyFormat = NumberFormat.currency(symbol: 'KSH ');
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final financeVm = context.read<FinanceViewModel>();
+      final governanceVm = context.read<GovernanceViewModel>();
+
+      governanceVm.fetchGroups().then((groups) {
+        if (groups.isNotEmpty && financeVm.selectedGroupId == null) {
+          financeVm.setSelectedGroup(groups.first['id']);
+        } else {
+          financeVm.fetchAdminMemberships();
+          if (financeVm.selectedGroupId != null) {
+            financeVm.fetchAdminGroupSummary();
+          }
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Finance Management')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            _ManagementOptionCard(
-              title: 'Record Group Payment',
-              description: 'Manually record a payment made outside the system.',
-              icon: Icons.add_card_outlined,
-              color: AppColors.primary,
-              onTap: () {
-                Navigator.pushNamed(context, '/governance/contributions');
-              },
-            ),
-            const SizedBox(height: 16),
-            _ManagementOptionCard(
-              title: 'Issue Penalty',
-              description: 'Assign a new fine to a member for rules violation.',
-              icon: Icons.gavel_outlined,
-              color: AppColors.error,
-              onTap: () {
-                Navigator.pushNamed(context, '/penalties');
-              },
-            ),
-            const SizedBox(height: 16),
-            _ManagementOptionCard(
-              title: 'Manage Investments',
-              description: 'Create and track group investment opportunities.',
-              icon: Icons.trending_up,
-              color: AppColors.accent,
-              onTap: () {
-                Navigator.pushNamed(context, '/governance/investments');
-              },
-            ),
-          ],
-        ),
+      backgroundColor: Colors.grey[50],
+      appBar: AppBar(
+        title: const Text('Financial Oversight'),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              final financeVm = context.read<FinanceViewModel>();
+              financeVm.fetchAdminMemberships();
+              financeVm.fetchAdminGroupSummary();
+            },
+          ),
+        ],
+      ),
+      body: Consumer2<FinanceViewModel, GovernanceViewModel>(
+        builder: (context, financeVm, governanceVm, child) {
+          if (governanceVm.isLoading && governanceVm.groups.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (governanceVm.groups.isEmpty) {
+            return const Center(child: Text("No groups found."));
+          }
+
+          return Column(
+            children: [
+              _buildHeader(financeVm, governanceVm),
+              _buildSearchBar(financeVm),
+              Expanded(
+                child: financeVm.isLoading && financeVm.adminMemberships.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : _buildMemberTable(financeVm),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
-}
 
-class _ManagementOptionCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
+  Widget _buildHeader(
+      FinanceViewModel financeVm, GovernanceViewModel governanceVm) {
+    final summary = financeVm.adminGroupSummary;
+    final stats = summary?['stats'];
 
-  const _ManagementOptionCard({
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomCard(
-      onTap: onTap,
-      child: Row(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 32),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Current Context",
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    DropdownButton<int>(
+                      value: financeVm.selectedGroupId,
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.keyboard_arrow_down),
+                      items: governanceVm.groups.map((g) {
+                        return DropdownMenuItem<int>(
+                          value: g['id'],
+                          child: Text(
+                            g['name'],
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        financeVm.setSelectedGroup(value);
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
-            ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined,
+                    color: AppColors.primary),
+                onPressed: () {
+                  final group = governanceVm.groups.firstWhere(
+                    (g) => g['id'] == financeVm.selectedGroupId,
+                    orElse: () => null,
+                  );
+                  if (group != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GroupSettingsView(group: group),
+                      ),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 8),
+              _buildCompactStat(
+                "Members",
+                "${stats?['member_count'] ?? '0'}",
+                Colors.blue,
+              ),
+            ],
           ),
-          const Icon(Icons.chevron_right, color: Colors.grey),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSummaryCard(
+                  "Total Savings",
+                  _currencyFormat.format(double.tryParse(
+                          stats?['total_savings']?.toString() ?? '0') ??
+                      0),
+                  Icons.account_balance_wallet,
+                  AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSummaryCard(
+                  "Unpaid Penalties",
+                  _currencyFormat.format(double.tryParse(
+                          stats?['total_penalties']?.toString() ?? '0') ??
+                      0),
+                  Icons.gavel_rounded,
+                  AppColors.error,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildAdminActions(context, financeVm),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminActions(BuildContext context, FinanceViewModel financeVm) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Admin Actions",
+          style: TextStyle(
+              fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: financeVm.isLoading
+                    ? null
+                    : () =>
+                        _confirmProcessAutoSave(context, financeVm, 'generate'),
+                icon: const Icon(Icons.autorenew),
+                label: const Text("Process Generations"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  foregroundColor: AppColors.primary,
+                  elevation: 0,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: financeVm.isLoading
+                    ? null
+                    : () =>
+                        _confirmProcessAutoSave(context, financeVm, 'enforce'),
+                icon: const Icon(Icons.gavel_rounded),
+                label: const Text("Enforce Penalties"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error.withValues(alpha: 0.1),
+                  foregroundColor: AppColors.error,
+                  elevation: 0,
+                  side: const BorderSide(color: AppColors.error),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _confirmProcessAutoSave(
+      BuildContext context, FinanceViewModel financeVm, String action) {
+    final isEnforce = action == 'enforce';
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isEnforce ? "Enforce Compliance" : "Process Generations"),
+        content: Text(
+          isEnforce
+              ? "This will check for savings compliance across all members. "
+                  "Non-compliant members (below minimum) will be issued penalties and receive email notifications.\n\nDo you want to proceed?"
+              : "This will generate PENDING contribution records for all members with active auto-saving configurations for the current month. "
+                  "Members will receive notifications.\n\nDo you want to proceed?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+
+              navigator.pop();
+              final success = await financeVm.triggerAutoSave(action: action);
+              if (mounted) {
+                if (success) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            "${isEnforce ? 'Penalties' : 'Auto-savings'} processed successfully")),
+                  );
+                } else {
+                  messenger.showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            "Failed to process ${isEnforce ? 'penalties' : 'auto-savings'}"),
+                        backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: Text(isEnforce ? "Enforce Now" : "Process Now"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactStat(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 10, color: color, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 4),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 14, color: color, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(
+      String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(
+            value,
+            style: TextStyle(
+                fontSize: 15, fontWeight: FontWeight.bold, color: color),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(FinanceViewModel financeVm) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search by name or MBR number...',
+          prefixIcon: const Icon(Icons.search),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+        ),
+        onChanged: (value) {
+          financeVm.fetchAdminMemberships(search: value);
+        },
+      ),
+    );
+  }
+
+  Widget _buildMemberTable(FinanceViewModel financeVm) {
+    if (financeVm.adminMemberships.isEmpty) {
+      return const Center(child: Text("No members found in this scope."));
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: financeVm.adminMemberships.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final membership =
+            Membership.fromJson(financeVm.adminMemberships[index]);
+        return _buildMemberCard(membership);
+      },
+    );
+  }
+
+  Widget _buildMemberCard(Membership m) {
+    return CustomCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      m.fullName,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      m.membershipNumber ?? "No MBR#",
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+              _buildTrailingAction(m),
+            ],
+          ),
+          const Divider(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMiniBalance(
+                    "Savings", m.savingsBalance, AppColors.primary),
+              ),
+              Expanded(
+                child: _buildMiniBalance(
+                    "Penalties", m.penaltiesBalance, AppColors.error),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniBalance(String label, double amount, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        Text(
+          _currencyFormat.format(amount),
+          style: TextStyle(
+              fontSize: 14, fontWeight: FontWeight.bold, color: color),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTrailingAction(Membership m) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, color: Colors.grey),
+      onSelected: (value) {
+        if (value == 'contribution') {
+          _showContributionDialog(m);
+        } else if (value == 'penalty') {
+          _showPenaltyDialog(m);
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'contribution',
+          child: Row(
+            children: [
+              Icon(Icons.add_circle_outline,
+                  color: AppColors.primary, size: 20),
+              SizedBox(width: 8),
+              Text("Add Contribution"),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'penalty',
+          child: Row(
+            children: [
+              Icon(Icons.gavel_rounded, color: AppColors.error, size: 20),
+              SizedBox(width: 8),
+              Text("Issue Penalty"),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showContributionDialog(Membership m) {
+    final amountController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Add Contribution - ${m.fullName}"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Amount (KSH)",
+                prefixText: "KSH ",
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              final amount = double.tryParse(amountController.text);
+              if (amount == null || amount <= 0) return;
+
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+              final success =
+                  await context.read<FinanceViewModel>().adminAddContribution({
+                'user_id': m.userId,
+                'group_id': m.groupId,
+                'amount': amount,
+              });
+
+              if (success && mounted) {
+                navigator.pop();
+                messenger.showSnackBar(
+                  const SnackBar(
+                      content: Text("Contribution added successfully")),
+                );
+              }
+            },
+            child: const Text("Add"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPenaltyDialog(Membership m) {
+    final amountController = TextEditingController();
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Issue Penalty - ${m.fullName}"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Amount (KSH)",
+                prefixText: "KSH ",
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: "Reason",
+                hintText: "e.g., Late meeting attendance",
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white),
+            onPressed: () async {
+              final amount = double.tryParse(amountController.text);
+              if (amount == null || amount <= 0) return;
+              if (reasonController.text.isEmpty) return;
+
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+              final success =
+                  await context.read<FinanceViewModel>().adminIssuePenalty({
+                'user': m.userId,
+                'amount': amount,
+                'reason': reasonController.text,
+              });
+
+              if (success && mounted) {
+                navigator.pop();
+                messenger.showSnackBar(
+                  const SnackBar(content: Text("Penalty issued successfully")),
+                );
+              }
+            },
+            child: const Text("Issue"),
+          ),
         ],
       ),
     );
