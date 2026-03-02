@@ -62,12 +62,27 @@ class _InvestmentsViewState extends State<InvestmentsView> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
-                                  child: Text(
-                                    investment.title,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        investment.name,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      if (investment.groupName != null)
+                                        Text(
+                                          investment.groupName!,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                                 _StatusBadge(status: investment.status),
@@ -87,11 +102,12 @@ class _InvestmentsViewState extends State<InvestmentsView> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Amount Raised',
+                                    const Text('Amount Invested',
                                         style: TextStyle(
                                             fontSize: 12, color: Colors.grey)),
                                     Text(
-                                      currencyFormat.format(investment.amount),
+                                      currencyFormat
+                                          .format(investment.amountInvested),
                                       style: const TextStyle(
                                           fontWeight: FontWeight.bold),
                                     ),
@@ -104,7 +120,7 @@ class _InvestmentsViewState extends State<InvestmentsView> {
                                         style: TextStyle(
                                             fontSize: 12, color: Colors.grey)),
                                     Text(
-                                      '${investment.expectedRoi}%',
+                                      '${investment.expectedRoiPercentage}%',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: AppColors.primary,

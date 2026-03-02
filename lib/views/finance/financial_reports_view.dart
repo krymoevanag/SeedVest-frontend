@@ -24,7 +24,7 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
       final groups = await context.read<GovernanceViewModel>().fetchGroups();
       if (groups.isNotEmpty) {
         setState(() {
-          _selectedGroupId = groups.first.id;
+          _selectedGroupId = groups.first['id'];
         });
         _fetchReport();
       }
@@ -87,8 +87,8 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
                 decoration: const InputDecoration(labelText: 'Select Group'),
                 items: gViewModel.groups.map((g) {
                   return DropdownMenuItem<int>(
-                    value: g.id,
-                    child: Text(g.name),
+                    value: g['id'],
+                    child: Text(g['name']),
                   );
                 }).toList(),
                 onChanged: (val) {

@@ -54,8 +54,8 @@ class _InvestmentManagementViewState extends State<InvestmentManagementView> {
                               const InputDecoration(labelText: 'Target Group'),
                           items: viewModel.groups.map((g) {
                             return DropdownMenuItem<int>(
-                              value: g.id,
-                              child: Text(g.name),
+                              value: g['id'],
+                              child: Text(g['name']),
                             );
                           }).toList(),
                           onChanged: (val) =>
@@ -92,20 +92,33 @@ class _InvestmentManagementViewState extends State<InvestmentManagementView> {
                     if (selectedGroupId != null &&
                         titleController.text.isNotEmpty) {
                       final navigator = Navigator.of(context);
-                      final success = await context
-                          .read<GovernanceViewModel>()
-                          .createInvestment({
-                        'group': selectedGroupId,
-                        'name': titleController.text,
-                        'principal_amount': double.parse(amountController.text),
-                        'expected_return_rate':
-                            double.parse(roiController.text),
-                        'status': 'ACTIVE',
-                        'start_date':
-                            DateTime.now().toIso8601String().split('T')[0],
-                      });
-                      if (success && mounted) {
-                        navigator.pop();
+                      final amount = double.tryParse(amountController.text);
+                      final roi = double.tryParse(roiController.text);
+
+                      if (selectedGroupId != null &&
+                          titleController.text.isNotEmpty &&
+                          amount != null &&
+                          roi != null) {
+                        final success = await context
+                            .read<GovernanceViewModel>()
+                            .createInvestment({
+                          'group': selectedGroupId,
+                          'name': titleController.text,
+                          'amount_invested': amount,
+                          'expected_roi_percentage': roi,
+                          'status': 'ACTIVE',
+                          'start_date':
+                              DateTime.now().toIso8601String().split('T')[0],
+                        });
+                        if (success && mounted) {
+                          navigator.pop();
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('Please fill all fields correctly')),
+                        );
                       }
                     }
                   },

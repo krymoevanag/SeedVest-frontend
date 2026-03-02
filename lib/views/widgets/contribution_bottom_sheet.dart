@@ -197,6 +197,8 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
     );
   }
 
+  bool _isSubmitting = false;
+
   @override
   Widget build(BuildContext context) {
     final isManualProposal = _selectedMethod != _methodMpesa;
@@ -223,7 +225,8 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed:
+                        _isSubmitting ? null : () => Navigator.pop(context),
                     icon: const Icon(Icons.close),
                   ),
                 ],
@@ -312,6 +315,7 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
               // Amount Field
               TextFormField(
                 controller: _amountController,
+                enabled: !_isSubmitting,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
@@ -348,8 +352,9 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
                       child: Text(g['name'] ?? 'Group ${g['id']}'),
                     );
                   }).toList(),
-                  onChanged: (value) =>
-                      setState(() => _selectedGroupId = value),
+                  onChanged: _isSubmitting
+                      ? null
+                      : (value) => setState(() => _selectedGroupId = value),
                   validator: (value) =>
                       value == null ? 'Please select a group' : null,
                 ),
@@ -359,6 +364,7 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
               if (!isManualProposal) ...[
                 TextFormField(
                   controller: _phoneController,
+                  enabled: !_isSubmitting,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
                     labelText: 'M-Pesa Phone Number',
@@ -378,18 +384,20 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
                 ),
               ] else ...[
                 InkWell(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _reportedPaidDate,
-                      firstDate:
-                          DateTime.now().subtract(const Duration(days: 365)),
-                      lastDate: DateTime.now(),
-                    );
-                    if (picked != null) {
-                      setState(() => _reportedPaidDate = picked);
-                    }
-                  },
+                  onTap: _isSubmitting
+                      ? null
+                      : () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _reportedPaidDate,
+                            firstDate: DateTime.now()
+                                .subtract(const Duration(days: 365)),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) {
+                            setState(() => _reportedPaidDate = picked);
+                          }
+                        },
                   child: InputDecorator(
                     decoration: const InputDecoration(
                       labelText: 'Reported Payment Date',
@@ -402,6 +410,7 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _referenceController,
+                  enabled: !_isSubmitting,
                   decoration: const InputDecoration(
                     labelText: 'Payment Reference',
                     prefixIcon: Icon(Icons.tag),
@@ -418,6 +427,7 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _noteController,
+                  enabled: !_isSubmitting,
                   maxLines: 2,
                   decoration: const InputDecoration(
                     labelText: 'Notes (optional)',
@@ -444,6 +454,7 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
               // Submit Button
               CustomButton(
                 text: isManualProposal ? 'Submit Proposal' : 'Push M-Pesa STK',
+                isLoading: _isSubmitting,
                 onPressed: _handleSubmit,
               ),
               const SizedBox(height: 32),
@@ -457,19 +468,15 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    setState(() => _isSubmitting = true);
+
     final viewModel = context.read<ContributionsViewModel>();
     final dashboardViewModel = context.read<DashboardViewModel>();
     final messenger = ScaffoldMessenger.of(context);
     final amount = double.parse(_amountController.text.trim());
 
-    Navigator.pop(context);
-
     if (_selectedMethod == _methodMpesa) {
       final phone = _normalizeMpesaPhone(_phoneController.text.trim());
-      messenger.showSnackBar(
-        const SnackBar(
-            content: Text('Initiating M-Pesa STK Push. Check your phone.')),
-      );
 
       final success = await viewModel.initiatePayment(
         amount,
@@ -479,10 +486,12 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
 
       if (!mounted) return;
       if (success) {
-        messenger.showSnackBar(
-            const SnackBar(content: Text('M-Pesa push sent successfully.')));
+        messenger.showSnackBar(const SnackBar(
+            content: Text('M-Pesa push initiated. Check your phone.')));
         _refreshData(viewModel, dashboardViewModel);
+        Navigator.pop(context);
       } else {
+        setState(() => _isSubmitting = false);
         messenger.showSnackBar(
           SnackBar(
             content: Text(
@@ -492,10 +501,6 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
         );
       }
     } else {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Submitting contribution proposal...')),
-      );
-
       final success = await viewModel.proposeManualContribution(
         groupId: _selectedGroupId,
         amount: amount,
@@ -514,7 +519,9 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
           ),
         );
         _refreshData(viewModel, dashboardViewModel);
+        Navigator.pop(context);
       } else {
+        setState(() => _isSubmitting = false);
         messenger.showSnackBar(
           const SnackBar(
             content: Text('Failed to submit proposal.'),
