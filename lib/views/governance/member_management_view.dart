@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../viewmodels/governance_viewmodel.dart';
 import '../../viewmodels/contributions_viewmodel.dart';
 import '../../data/models/user.dart';
+import '../../core/network/api_service.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_card.dart';
 
@@ -206,9 +207,9 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                               ),
                                               _buildActionButton(
                                                 icon: Icons.group_add_outlined,
-                                                label: 'Group',
+                                                label: 'Groups',
                                                 onPressed: () =>
-                                                    _showAssignGroupDialog(
+                                                    _showMemberGroupsDialog(
                                                         context, user),
                                                 color: Colors.blue.shade700,
                                               ),
@@ -772,12 +773,129 @@ class _MemberManagementViewState extends State<MemberManagementView> {
     );
   }
 
-  void _showAssignGroupDialog(BuildContext context, User user) {
+  Future<List<Map<String, dynamic>>> _fetchUserMemberships(int userId) async {
+    final apiService = ApiService();
+    final response = await apiService.getMemberships();
+    if (response.statusCode != 200 || response.data is! List) {
+      return [];
+    }
+    return (response.data as List)
+        .map((e) => Map<String, dynamic>.from(e))
+        .where((item) => item['user'] == userId)
+        .toList();
+  }
+
+  void _showMemberGroupsDialog(BuildContext context, User user) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('${user.fullName} - Groups'),
+          content: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _fetchUserMemberships(user.id),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  width: 320,
+                  height: 120,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return const SizedBox(
+                  width: 320,
+                  child: Text(
+                    'Failed to load member groups.',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                );
+              }
+
+              final memberships = snapshot.data ?? [];
+              if (memberships.isEmpty) {
+                return const SizedBox(
+                  width: 320,
+                  child: Text(
+                    'This member is not assigned to any group yet.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                );
+              }
+
+              return SizedBox(
+                width: 320,
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: memberships.length,
+                  separatorBuilder: (_, __) => const Divider(height: 16),
+                  itemBuilder: (context, index) {
+                    final membership = memberships[index];
+                    final role = (membership['role'] ?? 'MEMBER').toString();
+                    final joinedAt = DateTime.tryParse(
+                      membership['joined_at']?.toString() ?? '',
+                    );
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.groups_2_outlined),
+                      title: Text(
+                        membership['group_name']?.toString() ??
+                            'Group ${membership['group']}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        joinedAt == null
+                            ? 'Role: $role'
+                            : 'Role: $role - Joined ${DateFormat('dd MMM yyyy').format(joinedAt)}',
+                        style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _showAssignGroupDialogWithExisting(
+                  context,
+                  user,
+                  existingGroupIds: user.groupIds,
+                );
+              },
+              icon: const Icon(Icons.group_add_outlined),
+              label: const Text('Assign Group'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAssignGroupDialogWithExisting(
+    BuildContext context,
+    User user, {
+    List<int> existingGroupIds = const [],
+  }) {
     int? selectedGroupId;
     String selectedRole = 'MEMBER';
     bool isSubmitting = false;
 
     final viewModel = context.read<GovernanceViewModel>();
+    final availableGroups = viewModel.groups
+        .where((g) => !existingGroupIds.contains(g['id']))
+        .toList();
 
     showDialog(
       context: context,
@@ -793,21 +911,27 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                   const Text('Select Group:',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<int>(
-                    initialValue: selectedGroupId,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                  if (availableGroups.isEmpty)
+                    Text(
+                      'This member is already assigned to all available groups.',
+                      style: TextStyle(color: Colors.grey[700]),
+                    )
+                  else
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedGroupId,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      items: availableGroups.map<DropdownMenuItem<int>>((g) {
+                        return DropdownMenuItem<int>(
+                          value: g['id'],
+                          child: Text(g['name'] ?? 'Group ${g['id']}'),
+                        );
+                      }).toList(),
+                      onChanged: (val) =>
+                          setDialogState(() => selectedGroupId = val),
                     ),
-                    items: viewModel.groups.map<DropdownMenuItem<int>>((g) {
-                      return DropdownMenuItem<int>(
-                        value: g['id'],
-                        child: Text(g['name'] ?? 'Group ${g['id']}'),
-                      );
-                    }).toList(),
-                    onChanged: (val) =>
-                        setDialogState(() => selectedGroupId = val),
-                  ),
                   const SizedBox(height: 16),
                   const Text('Select Role:',
                       style: TextStyle(fontWeight: FontWeight.bold)),
@@ -834,7 +958,9 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: isSubmitting || selectedGroupId == null
+                  onPressed: isSubmitting ||
+                          selectedGroupId == null ||
+                          availableGroups.isEmpty
                       ? null
                       : () async {
                           setDialogState(() => isSubmitting = true);

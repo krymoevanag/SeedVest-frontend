@@ -33,13 +33,19 @@ class _ContributionManagementViewState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ContributionsViewModel>().fetchContributions();
+      final viewModel = context.read<ContributionsViewModel>();
+      viewModel.fetchContributions();
+      viewModel.fetchUsersAndGroups();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<ContributionsViewModel>();
+    final memberById = <int, Map<String, dynamic>>{
+      for (final member in viewModel.members)
+        if (member['id'] is int) member['id'] as int: member,
+    };
     // Only show PENDING contributions for management
     final pendingContributions =
         viewModel.contributions.where((c) => c.status == 'PENDING').toList();
@@ -77,6 +83,17 @@ class _ContributionManagementViewState
                     itemCount: pendingContributions.length,
                     itemBuilder: (context, index) {
                       final contribution = pendingContributions[index];
+                      final member = memberById[contribution.userId];
+                      final memberName = ((member?['full_name'] ?? '')
+                              .toString()
+                              .trim()
+                              .isNotEmpty)
+                          ? (member?['full_name'] as String).trim()
+                          : ((member?['email'] ?? 'Unknown member').toString());
+                      final memberMembershipNumber =
+                          (member?['membership_number'] ?? '')
+                              .toString()
+                              .trim();
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: CustomCard(
@@ -89,11 +106,29 @@ class _ContributionManagementViewState
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      'Member ID: ${contribution.userId}',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            memberName,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (memberMembershipNumber.isNotEmpty)
+                                            Text(
+                                              'MBR#: $memberMembershipNumber',
+                                              style: TextStyle(
+                                                  color: Colors.grey[600],
+                                                  fontSize: 12),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 12),
                                     Text(
                                       currencyFormat
                                           .format(contribution.amount),
@@ -271,7 +306,8 @@ class _ContributionManagementViewState
                   content: Text(
                     success
                         ? 'Contribution ${action}d successfully.'
-                        : (viewModel.actionError ?? 'Failed to $action contribution.'),
+                        : (viewModel.actionError ??
+                            'Failed to $action contribution.'),
                   ),
                   backgroundColor: success ? Colors.green : Colors.red,
                 ),
