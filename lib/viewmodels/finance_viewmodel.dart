@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/network/api_service.dart';
+import '../data/models/financial_cycle.dart';
+import '../data/models/monthly_contribution_record.dart';
 
 class FinanceViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -24,6 +26,15 @@ class FinanceViewModel extends ChangeNotifier {
 
   Map<String, dynamic>? _monthlyReport;
   Map<String, dynamic>? get monthlyReport => _monthlyReport;
+  Map<String, dynamic>? _annualCycleSummary;
+  Map<String, dynamic>? get annualCycleSummary => _annualCycleSummary;
+
+  List<FinancialCycle> _financialCycles = [];
+  List<FinancialCycle> get financialCycles => _financialCycles;
+
+  List<MonthlyContributionRecord> _monthlyContributionRecords = [];
+  List<MonthlyContributionRecord> get monthlyContributionRecords =>
+      _monthlyContributionRecords;
 
   List<dynamic> _adminMemberships = [];
   List<dynamic> get adminMemberships => _adminMemberships;
@@ -39,6 +50,8 @@ class FinanceViewModel extends ChangeNotifier {
 
   int? _selectedGroupId;
   int? get selectedGroupId => _selectedGroupId;
+  int? _selectedCycleId;
+  int? get selectedCycleId => _selectedCycleId;
 
   Future<void> fetchInsights() async {
     _setLoading(true);
@@ -54,10 +67,13 @@ class FinanceViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchMemberAnalytics({int? groupId}) async {
+  Future<void> fetchMemberAnalytics({int? groupId, int? cycleId}) async {
     _setLoading(true);
     try {
-      final response = await _apiService.getMemberAnalytics(groupId: groupId);
+      final response = await _apiService.getMemberAnalytics(
+        groupId: groupId,
+        cycleId: cycleId,
+      );
       if (response.statusCode == 200) {
         _memberAnalytics = response.data;
       }
@@ -68,10 +84,11 @@ class FinanceViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchGroupAnalytics(int groupId) async {
+  Future<void> fetchGroupAnalytics(int groupId, {int? cycleId}) async {
     _setLoading(true);
     try {
-      final response = await _apiService.getGroupAnalytics(groupId);
+      final response =
+          await _apiService.getGroupAnalytics(groupId, cycleId: cycleId);
       if (response.statusCode == 200) {
         _groupAnalytics = response.data;
       }
@@ -162,10 +179,20 @@ class FinanceViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchMonthlyReport(int groupId, int month, int year) async {
+  Future<void> fetchMonthlyReport(
+    int groupId,
+    int month,
+    int year, {
+    int? cycleId,
+  }) async {
     _setLoading(true);
     try {
-      final response = await _apiService.getMonthlyReport(groupId, month, year);
+      final response = await _apiService.getMonthlyReport(
+        groupId,
+        month,
+        year,
+        cycleId: cycleId,
+      );
       if (response.statusCode == 200) {
         _monthlyReport = response.data;
       }
@@ -342,5 +369,72 @@ class FinanceViewModel extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<void> fetchFinancialCycles({required int groupId}) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.getFinancialCycles(groupId: groupId);
+      if (response.statusCode == 200) {
+        final List data = response.data;
+        _financialCycles = data
+            .map((e) => FinancialCycle.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Error fetching financial cycles: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> fetchMonthlyContributionRecords({
+    int? groupId,
+    int? cycleId,
+    int? memberId,
+    String? status,
+    DateTime? month,
+  }) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.getMonthlyContributionRecords(
+        groupId: groupId,
+        cycleId: cycleId,
+        memberId: memberId,
+        status: status,
+        month: month,
+      );
+      if (response.statusCode == 200) {
+        final List data = response.data;
+        _monthlyContributionRecords = data
+            .map((e) => MonthlyContributionRecord.fromJson(
+                  Map<String, dynamic>.from(e),
+                ))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Error fetching monthly contribution records: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> fetchAnnualCycleSummary(int cycleId) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.getCycleAnnualSummary(cycleId);
+      if (response.statusCode == 200) {
+        _annualCycleSummary = Map<String, dynamic>.from(response.data);
+      }
+    } catch (e) {
+      debugPrint('Error fetching annual cycle summary: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  void setSelectedCycle(int? cycleId) {
+    _selectedCycleId = cycleId;
+    notifyListeners();
   }
 }

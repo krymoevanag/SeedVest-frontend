@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/network/api_service.dart';
 import '../../viewmodels/finance_viewmodel.dart';
 import '../../viewmodels/governance_viewmodel.dart';
 import '../../core/theme/colors.dart';
@@ -14,8 +15,10 @@ class FinancialReportsView extends StatefulWidget {
 
 class _FinancialReportsViewState extends State<FinancialReportsView> {
   int? _selectedGroupId;
+  int? _selectedCycleId;
   int _selectedMonth = DateTime.now().month;
   int _selectedYear = DateTime.now().year;
+  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
@@ -26,18 +29,97 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
         setState(() {
           _selectedGroupId = groups.first['id'];
         });
-        _fetchReport();
+        await _loadCyclesForGroup();
+        await _fetchReport();
       }
     });
   }
 
-  void _fetchReport() {
-    if (_selectedGroupId != null) {
-      context.read<FinanceViewModel>().fetchMonthlyReport(
-            _selectedGroupId!,
-            _selectedMonth,
-            _selectedYear,
-          );
+  Future<void> _loadCyclesForGroup() async {
+    if (_selectedGroupId == null) {
+      return;
+    }
+    final financeVM = context.read<FinanceViewModel>();
+    await financeVM.fetchFinancialCycles(groupId: _selectedGroupId!);
+    if (!mounted) {
+      return;
+    }
+    final cycles = financeVM.financialCycles;
+    final active = cycles
+        .where((cycle) => cycle.status.toUpperCase() == 'ACTIVE')
+        .toList(growable: false);
+    setState(() {
+      _selectedCycleId = active.isNotEmpty
+          ? active.first.id
+          : (cycles.isNotEmpty ? cycles.first.id : null);
+    });
+  }
+
+  Future<void> _fetchReport() async {
+    if (_selectedGroupId == null) {
+      return;
+    }
+    final financeVM = context.read<FinanceViewModel>();
+    final monthDate = DateTime(_selectedYear, _selectedMonth, 1);
+
+    await financeVM.fetchMonthlyReport(
+      _selectedGroupId!,
+      _selectedMonth,
+      _selectedYear,
+      cycleId: _selectedCycleId,
+    );
+    if (!mounted) {
+      return;
+    }
+    await financeVM.fetchMonthlyContributionRecords(
+      groupId: _selectedGroupId,
+      cycleId: _selectedCycleId,
+      month: monthDate,
+    );
+    if (!mounted) {
+      return;
+    }
+    if (_selectedCycleId != null) {
+      await financeVM.fetchAnnualCycleSummary(_selectedCycleId!);
+    } else {
+      financeVM.setSelectedCycle(null);
+    }
+  }
+
+  Future<void> _exportCsv() async {
+    if (_selectedGroupId == null) {
+      return;
+    }
+    try {
+      final response = await _apiService.exportMonthlyContributionRecords(
+        groupId: _selectedGroupId,
+        cycleId: _selectedCycleId,
+        month: DateTime(_selectedYear, _selectedMonth, 1),
+      );
+      final csv = response.data?.toString() ?? '';
+      final rows = csv
+          .split('\n')
+          .where((line) => line.trim().isNotEmpty)
+          .length;
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('CSV export fetched (${rows > 0 ? rows - 1 : 0} rows).'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to export monthly contributions CSV.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -49,32 +131,27 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
         backgroundColor: AppColors.primary,
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          _buildFilters(),
-          Expanded(
-            child: Consumer<FinanceViewModel>(
-              builder: (context, viewModel, child) {
-                if (viewModel.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final report = viewModel.monthlyReport;
-                if (report == null) {
-                  return const Center(
-                      child: Text('Select filters and fetch report.'));
-                }
-
-                return _buildReportContent(report);
-              },
-            ),
-          ),
-        ],
+      body: Consumer<FinanceViewModel>(
+        builder: (context, viewModel, child) {
+          return Column(
+            children: [
+              _buildFilters(viewModel),
+              Expanded(
+                child: viewModel.isLoading &&
+                        viewModel.monthlyReport == null &&
+                        viewModel.monthlyContributionRecords.isEmpty
+                    ? const Center(child: CircularProgressIndicator())
+                    : _buildReportContent(viewModel),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildFilters() {
+  Widget _buildFilters(FinanceViewModel financeVM) {
+    final cycles = financeVM.financialCycles;
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.white,
@@ -92,11 +169,33 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
                   );
                 }).toList(),
                 onChanged: (val) {
-                  setState(() => _selectedGroupId = val);
-                  _fetchReport();
+                  setState(() {
+                    _selectedGroupId = val;
+                    _selectedCycleId = null;
+                  });
+                  _loadCyclesForGroup().then((_) => _fetchReport());
                 },
               );
             },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int>(
+            initialValue: _selectedCycleId,
+            decoration: const InputDecoration(labelText: 'Financial Cycle'),
+            items: cycles
+                .map(
+                  (cycle) => DropdownMenuItem<int>(
+                    value: cycle.id,
+                    child: Text('${cycle.cycleName} (${cycle.status})'),
+                  ),
+                )
+                .toList(),
+            onChanged: cycles.isEmpty
+                ? null
+                : (val) {
+                    setState(() => _selectedCycleId = val);
+                    _fetchReport();
+                  },
           ),
           const SizedBox(height: 12),
           Row(
@@ -108,7 +207,7 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
                   items: List.generate(12, (index) => index + 1).map((m) {
                     return DropdownMenuItem<int>(
                       value: m,
-                      child: Text(DateFormat('MMMM').format(DateTime(2024, m))),
+                      child: Text(DateFormat('MMMM').format(DateTime(2026, m))),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -122,7 +221,7 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
                 child: DropdownButtonFormField<int>(
                   initialValue: _selectedYear,
                   decoration: const InputDecoration(labelText: 'Year'),
-                  items: [2024, 2025, 2026].map((y) {
+                  items: [2024, 2025, 2026, 2027].map((y) {
                     return DropdownMenuItem<int>(
                       value: y,
                       child: Text(y.toString()),
@@ -141,19 +240,26 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
     );
   }
 
-  Widget _buildReportContent(Map<String, dynamic> report) {
+  Widget _buildReportContent(FinanceViewModel viewModel) {
+    final report = viewModel.monthlyReport;
+    if (report == null) {
+      return const Center(child: Text('Select filters and fetch report.'));
+    }
+    final annual = viewModel.annualCycleSummary;
+    final monthlyRecords = viewModel.monthlyContributionRecords;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         _buildStatCard(
           'Total Savings',
-          'UGX ${report['total_savings']}',
+          'KES ${report['total_savings']}',
           Icons.account_balance_wallet,
           Colors.green,
         ),
         _buildStatCard(
           'Total Penalties',
-          'UGX ${report['total_penalties']}',
+          'KES ${report['total_penalties']}',
           Icons.gavel_rounded,
           Colors.red,
         ),
@@ -162,7 +268,7 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
             Expanded(
               child: _buildStatCard(
                 'Pending',
-                'UGX ${report['pending_amount']}',
+                'KES ${report['pending_amount']}',
                 Icons.hourglass_empty,
                 Colors.orange,
               ),
@@ -171,7 +277,7 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
             Expanded(
               child: _buildStatCard(
                 'Overdue',
-                'UGX ${report['overdue_amount']}',
+                'KES ${report['overdue_amount']}',
                 Icons.error_outline,
                 Colors.red.shade900,
               ),
@@ -185,19 +291,98 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
           Colors.blue,
         ),
         _buildStatCard(
+          'Expected Contributions',
+          'KES ${report['total_expected_contributions']}',
+          Icons.calendar_month,
+          Colors.blueGrey,
+        ),
+        _buildStatCard(
+          'Collected Contributions',
+          'KES ${report['total_collected_contributions']}',
+          Icons.savings,
+          Colors.teal,
+        ),
+        _buildStatCard(
+          'Outstanding Totals',
+          'KES ${report['outstanding_totals']}',
+          Icons.warning_amber_rounded,
+          Colors.deepOrange,
+        ),
+        _buildStatCard(
           'Active Investments',
           report['active_investments_count'].toString(),
           Icons.trending_up,
           Colors.purple,
         ),
+        if (annual != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Cycle Annual Summary',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          _buildStatCard(
+            'Fulfillment Rate',
+            '${annual['contribution_fulfillment_rate']}%',
+            Icons.track_changes,
+            Colors.indigo,
+          ),
+          _buildStatCard(
+            'Consistency Score',
+            '${annual['member_payment_consistency_score']}%',
+            Icons.verified_user,
+            Colors.green,
+          ),
+        ],
+        const SizedBox(height: 12),
+        Text(
+          'Monthly Member Records',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        if (monthlyRecords.isEmpty)
+          const Text('No monthly records for selected filters.')
+        else
+          ...monthlyRecords.map(
+            (record) => Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: ListTile(
+                title: Text(record.memberName),
+                subtitle: Text(
+                  '${record.cycleName} • ${DateFormat('MMM yyyy').format(record.month)}',
+                ),
+                trailing: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      record.status,
+                      style: TextStyle(
+                        color: record.status == 'PAID'
+                            ? Colors.green
+                            : (record.status == 'PARTIAL'
+                                ? Colors.orange
+                                : Colors.red),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'KES ${record.actualContributionPaid}/${record.expectedContributionAmount}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    if (record.outstandingAmount > 0)
+                      Text(
+                        'Out: KES ${record.outstandingAmount}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 20),
         ElevatedButton.icon(
-          onPressed: () {
-            // Placeholder for CSV Export
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('CSV Export coming soon!')),
-            );
-          },
+          onPressed: _exportCsv,
           icon: const Icon(Icons.download),
           label: const Text('Export CSV'),
           style: ElevatedButton.styleFrom(

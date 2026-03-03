@@ -111,10 +111,18 @@ class GovernanceViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchInvestments() async {
+  Future<void> fetchInvestments({
+    int? groupId,
+    int? cycleId,
+    String? status,
+  }) async {
     _setLoading(true);
     try {
-      final response = await _apiService.getInvestments();
+      final response = await _apiService.getInvestments(
+        groupId: groupId,
+        cycleId: cycleId,
+        status: status,
+      );
       if (response.statusCode == 200) {
         final List data = response.data;
         _investments = data.map((e) => Investment.fromJson(e)).toList();

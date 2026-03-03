@@ -152,6 +152,20 @@ class _InvestmentDetailsViewState extends State<InvestmentDetailsView> {
                 ],
               ),
             ],
+            if (investment.financialCycleName != null &&
+                investment.financialCycleName!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.event_repeat, size: 14, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Cycle: ${investment.financialCycleName}',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 24),
             CustomCard(
               color: AppColors.primary,
@@ -215,6 +229,28 @@ class _InvestmentDetailsViewState extends State<InvestmentDetailsView> {
                       label: 'Status',
                       value: investment.status,
                       isStatus: true),
+                  if ((investment.decisionNotes ?? '').trim().isNotEmpty) ...[
+                    const Divider(),
+                    _PerformanceRow(
+                      label: investment.status == 'REJECTED'
+                          ? 'Rejection Reason'
+                          : 'Decision Notes',
+                      value: investment.decisionNotes!,
+                    ),
+                  ],
+                  if (investment.reviewedByEmail != null &&
+                      investment.reviewedByEmail!.isNotEmpty) ...[
+                    const Divider(),
+                    _PerformanceRow(
+                        label: 'Reviewed By', value: investment.reviewedByEmail!),
+                  ],
+                  if (investment.reviewedAt != null) ...[
+                    const Divider(),
+                    _PerformanceRow(
+                      label: 'Reviewed At',
+                      value: dateFormat.format(investment.reviewedAt!),
+                    ),
+                  ],
                   const Divider(),
                   _PerformanceRow(
                       label: 'Return Type', value: investment.returnType),

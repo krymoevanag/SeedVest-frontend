@@ -18,8 +18,13 @@ class Investment {
   final String status;
   final DateTime startDate;
   final DateTime? endDate;
+  final int? financialCycleId;
+  final String? financialCycleName;
   final String? groupName;
   final String? createdByEmail;
+  final String? reviewedByEmail;
+  final DateTime? reviewedAt;
+  final String? decisionNotes;
   final DateTime createdAt;
 
   Investment({
@@ -42,8 +47,13 @@ class Investment {
     required this.status,
     required this.startDate,
     this.endDate,
+    this.financialCycleId,
+    this.financialCycleName,
     this.groupName,
     this.createdByEmail,
+    this.reviewedByEmail,
+    this.reviewedAt,
+    this.decisionNotes,
     required this.createdAt,
   });
 
@@ -74,8 +84,15 @@ class Investment {
       startDate: DateTime.parse(json['start_date']),
       endDate:
           json['end_date'] != null ? DateTime.parse(json['end_date']) : null,
+      financialCycleId: json['financial_cycle'],
+      financialCycleName: json['financial_cycle_name'],
       groupName: json['group_name'],
       createdByEmail: json['created_by_name'],
+      reviewedByEmail: json['reviewed_by_name'],
+      reviewedAt: json['reviewed_at'] != null
+          ? DateTime.tryParse(json['reviewed_at'])
+          : null,
+      decisionNotes: json['decision_notes'],
       createdAt: DateTime.parse(json['created_at']),
     );
   }
@@ -101,7 +118,12 @@ class Investment {
       'status': status,
       'start_date': startDate.toIso8601String().split('T')[0],
       'end_date': endDate?.toIso8601String().split('T')[0],
+      'financial_cycle': financialCycleId,
+      'financial_cycle_name': financialCycleName,
       'created_at': createdAt.toIso8601String(),
+      'reviewed_by_name': reviewedByEmail,
+      'reviewed_at': reviewedAt?.toIso8601String(),
+      'decision_notes': decisionNotes,
     };
   }
 }

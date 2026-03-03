@@ -10,6 +10,8 @@ class ContributionsViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? _paymentError;
   String? get paymentError => _paymentError;
+  String? _actionError;
+  String? get actionError => _actionError;
 
   List<Contribution> _contributions = [];
   List<Contribution> get contributions => _contributions;
@@ -143,29 +145,41 @@ class ContributionsViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> approveContribution(int id) async {
+  Future<bool> approveContribution(int id) async {
     _setLoading(true);
+    _actionError = null;
     try {
       final response = await _apiService.approveContribution(id);
       if (response.statusCode == 200) {
         await fetchContributions(); // Refresh list
+        return true;
       }
+      _actionError = _extractErrorMessage(response.data) ?? 'Failed to approve';
+      return false;
     } catch (e) {
       debugPrint('Error approving contribution: $e');
+      _actionError = 'Failed to approve contribution';
+      return false;
     } finally {
       _setLoading(false);
     }
   }
 
-  Future<void> rejectContribution(int id) async {
+  Future<bool> rejectContribution(int id, String reason) async {
     _setLoading(true);
+    _actionError = null;
     try {
-      final response = await _apiService.rejectContribution(id);
+      final response = await _apiService.rejectContribution(id, reason);
       if (response.statusCode == 200) {
         await fetchContributions(); // Refresh list
+        return true;
       }
+      _actionError = _extractErrorMessage(response.data) ?? 'Failed to reject';
+      return false;
     } catch (e) {
       debugPrint('Error rejecting contribution: $e');
+      _actionError = 'Failed to reject contribution';
+      return false;
     } finally {
       _setLoading(false);
     }
@@ -221,6 +235,8 @@ class ContributionsViewModel extends ChangeNotifier {
         'message',
         'ResponseDescription',
         'CustomerMessage',
+        'reason',
+        'notes',
         'group_id',
         'user_id',
         'non_field_errors'

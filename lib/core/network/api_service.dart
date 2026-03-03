@@ -369,8 +369,33 @@ class ApiService {
     }
   }
 
-  Future<Response> getInvestments() async {
-    return await dio.get('finance/investments/');
+  Future<Response> getInvestments({
+    int? groupId,
+    int? cycleId,
+    String? status,
+    String? category,
+    String? riskLevel,
+    String? member,
+    double? amountMin,
+    double? amountMax,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+  }) async {
+    return await dio.get(
+      'finance/investments/',
+      queryParameters: {
+        if (groupId != null) 'group_id': groupId,
+        if (cycleId != null) 'cycle_id': cycleId,
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (category != null && category.isNotEmpty) 'category': category,
+        if (riskLevel != null && riskLevel.isNotEmpty) 'risk_level': riskLevel,
+        if (member != null && member.isNotEmpty) 'member': member,
+        if (amountMin != null) 'amount_min': amountMin,
+        if (amountMax != null) 'amount_max': amountMax,
+        if (dateFrom != null) 'date_from': dateFrom.toIso8601String().split('T')[0],
+        if (dateTo != null) 'date_to': dateTo.toIso8601String().split('T')[0],
+      },
+    );
   }
 
   Future<Response> createInvestment(Map<String, dynamic> data) async {
@@ -437,8 +462,11 @@ class ApiService {
     return await dio.post('finance/contributions/$id/approve/');
   }
 
-  Future<Response> rejectContribution(int id) async {
-    return await dio.post('finance/contributions/$id/reject/');
+  Future<Response> rejectContribution(int id, String reason) async {
+    return await dio.post(
+      'finance/contributions/$id/reject/',
+      data: {'reason': reason},
+    );
   }
 
   Future<Response> getAuditLogs() async {
@@ -495,23 +523,80 @@ class ApiService {
     return await dio.get('finance/insights/');
   }
 
-  Future<Response> getMonthlyReport(int groupId, int month, int year) async {
+  Future<Response> getFinancialCycles({int? groupId, String? status}) async {
+    return await dio.get('finance/financial-cycles/', queryParameters: {
+      if (groupId != null) 'group_id': groupId,
+      if (status != null && status.isNotEmpty) 'status': status,
+    });
+  }
+
+  Future<Response> getMonthlyContributionRecords({
+    int? groupId,
+    int? cycleId,
+    int? memberId,
+    String? status,
+    DateTime? month,
+  }) async {
+    return await dio.get('finance/monthly-contributions/', queryParameters: {
+      if (groupId != null) 'group_id': groupId,
+      if (cycleId != null) 'cycle_id': cycleId,
+      if (memberId != null) 'member_id': memberId,
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (month != null) 'month': month.toIso8601String().split('T')[0],
+    });
+  }
+
+  Future<Response> exportMonthlyContributionRecords({
+    int? groupId,
+    int? cycleId,
+    int? memberId,
+    String? status,
+    DateTime? month,
+  }) async {
+    return await dio.get(
+      'finance/monthly-contributions/export/',
+      queryParameters: {
+        if (groupId != null) 'group_id': groupId,
+        if (cycleId != null) 'cycle_id': cycleId,
+        if (memberId != null) 'member_id': memberId,
+        if (status != null && status.isNotEmpty) 'status': status,
+        if (month != null) 'month': month.toIso8601String().split('T')[0],
+      },
+      options: Options(responseType: ResponseType.plain),
+    );
+  }
+
+  Future<Response> getCycleAnnualSummary(int cycleId) async {
+    return await dio.get('finance/reports/annual/', queryParameters: {
+      'cycle_id': cycleId,
+    });
+  }
+
+  Future<Response> getMonthlyReport(
+    int groupId,
+    int month,
+    int year, {
+    int? cycleId,
+  }) async {
     return await dio.get('finance/reports/summary/', queryParameters: {
       'group_id': groupId,
       'month': month,
       'year': year,
+      if (cycleId != null) 'cycle_id': cycleId,
     });
   }
 
-  Future<Response> getMemberAnalytics({int? groupId}) async {
+  Future<Response> getMemberAnalytics({int? groupId, int? cycleId}) async {
     return await dio.get('finance/analytics/member/', queryParameters: {
       if (groupId != null) 'group_id': groupId,
+      if (cycleId != null) 'cycle_id': cycleId,
     });
   }
 
-  Future<Response> getGroupAnalytics(int groupId) async {
+  Future<Response> getGroupAnalytics(int groupId, {int? cycleId}) async {
     return await dio.get('finance/analytics/group/', queryParameters: {
       'group_id': groupId,
+      if (cycleId != null) 'cycle_id': cycleId,
     });
   }
 

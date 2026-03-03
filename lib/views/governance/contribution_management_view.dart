@@ -212,28 +212,70 @@ class _ContributionManagementViewState
   }
 
   void _confirmAction(BuildContext context, String action, int id) {
+    final reasonController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
             '${action[0].toUpperCase()}${action.substring(1)} Contribution'),
-        content: Text('Are you sure you want to $action this contribution?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to $action this contribution?'),
+            if (action == 'reject') ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Rejection reason',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
+              final reason = reasonController.text.trim();
+              if (action == 'reject' && reason.isEmpty) {
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Rejection reason is required.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
               final viewModel = Provider.of<ContributionsViewModel>(
                   this.context,
                   listen: false);
+              final bool success;
               if (action == 'approve') {
-                viewModel.approveContribution(id);
+                success = await viewModel.approveContribution(id);
               } else {
-                viewModel.rejectContribution(id);
+                success = await viewModel.rejectContribution(id, reason);
               }
-              Navigator.pop(context);
+              if (!mounted) {
+                return;
+              }
+              Navigator.of(this.context).pop();
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    success
+                        ? 'Contribution ${action}d successfully.'
+                        : (viewModel.actionError ?? 'Failed to $action contribution.'),
+                  ),
+                  backgroundColor: success ? Colors.green : Colors.red,
+                ),
+              );
             },
             child: Text(action[0].toUpperCase() + action.substring(1),
                 style: TextStyle(

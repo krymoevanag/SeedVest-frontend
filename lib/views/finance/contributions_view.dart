@@ -77,11 +77,33 @@ class _ContributionsViewState extends State<ContributionsView> {
                           currencyFormat.format(contribution.amount),
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text(
-                          contribution.isManualEntry
-                              ? '${DateFormat('MMM dd, yyyy - HH:mm').format(contribution.date)} - Manual proposal'
-                              : DateFormat('MMM dd, yyyy - HH:mm')
-                                  .format(contribution.date),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              contribution.isManualEntry
+                                  ? '${DateFormat('MMM dd, yyyy - HH:mm').format(contribution.date)} - Manual proposal'
+                                  : DateFormat('MMM dd, yyyy - HH:mm')
+                                      .format(contribution.date),
+                            ),
+                            if (contribution.contributionMonth != null)
+                              Text(
+                                'Month: ${DateFormat('MMM yyyy').format(contribution.contributionMonth!)}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            if ((contribution.rejectionReason ?? '')
+                                .trim()
+                                .isNotEmpty)
+                              Text(
+                                'Reason: ${contribution.rejectionReason}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                          ],
                         ),
                         trailing: Container(
                           padding: const EdgeInsets.symmetric(
