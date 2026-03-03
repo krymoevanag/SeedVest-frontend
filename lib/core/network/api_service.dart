@@ -604,16 +604,22 @@ class ApiService {
     return await dio.get('groups/groups/');
   }
 
-  Future<Response> getAdminMemberships({int? groupId, String? search}) async {
+  Future<Response> getAdminMemberships({
+    int? groupId,
+    int? cycleId,
+    String? search,
+  }) async {
     return await dio.get('finance/admin-member-list/', queryParameters: {
       if (groupId != null) 'group_id': groupId,
+      if (cycleId != null) 'cycle_id': cycleId,
       if (search != null && search.isNotEmpty) 'search': search,
     });
   }
 
-  Future<Response> getAdminGroupSummary(int groupId) async {
+  Future<Response> getAdminGroupSummary(int groupId, {int? cycleId}) async {
     return await dio.get('finance/admin-group-summary/', queryParameters: {
       'group_id': groupId,
+      if (cycleId != null) 'cycle_id': cycleId,
     });
   }
 

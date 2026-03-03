@@ -9,6 +9,15 @@ class Membership {
   final String role;
   final double savingsBalance;
   final double penaltiesBalance;
+  final int totalContributionsCount;
+  final int paidContributionsCount;
+  final int pendingContributionsCount;
+  final int overdueContributionsCount;
+  final int rejectedContributionsCount;
+  final double expectedTotal;
+  final double outstandingTotal;
+  final DateTime? lastContributionDate;
+  final double lastContributionAmount;
   final DateTime joinedAt;
 
   Membership({
@@ -22,6 +31,15 @@ class Membership {
     required this.role,
     required this.savingsBalance,
     required this.penaltiesBalance,
+    required this.totalContributionsCount,
+    required this.paidContributionsCount,
+    required this.pendingContributionsCount,
+    required this.overdueContributionsCount,
+    required this.rejectedContributionsCount,
+    required this.expectedTotal,
+    required this.outstandingTotal,
+    this.lastContributionDate,
+    required this.lastContributionAmount,
     required this.joinedAt,
   });
 
@@ -39,6 +57,19 @@ class Membership {
           double.tryParse(json['savings_balance'].toString()) ?? 0.0,
       penaltiesBalance:
           double.tryParse(json['penalties_balance'].toString()) ?? 0.0,
+      totalContributionsCount: json['total_contributions_count'] ?? 0,
+      paidContributionsCount: json['paid_contributions_count'] ?? 0,
+      pendingContributionsCount: json['pending_contributions_count'] ?? 0,
+      overdueContributionsCount: json['overdue_contributions_count'] ?? 0,
+      rejectedContributionsCount: json['rejected_contributions_count'] ?? 0,
+      expectedTotal: double.tryParse(json['expected_total'].toString()) ?? 0.0,
+      outstandingTotal:
+          double.tryParse(json['outstanding_total'].toString()) ?? 0.0,
+      lastContributionDate: json['last_contribution_date'] != null
+          ? DateTime.tryParse(json['last_contribution_date'].toString())
+          : null,
+      lastContributionAmount:
+          double.tryParse(json['last_contribution_amount'].toString()) ?? 0.0,
       joinedAt: DateTime.parse(json['joined_at']),
     );
   }

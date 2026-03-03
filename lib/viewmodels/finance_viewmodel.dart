@@ -208,13 +208,22 @@ class FinanceViewModel extends ChangeNotifier {
     try {
       final response = await _apiService.getAdminMemberships(
         groupId: _selectedGroupId,
+        cycleId: _selectedCycleId,
         search: search,
       );
       if (response.statusCode == 200) {
-        _adminMemberships = response.data;
+        final payload = response.data;
+        if (payload is List) {
+          _adminMemberships = payload;
+        } else if (payload is Map && payload['results'] is List) {
+          _adminMemberships = List<dynamic>.from(payload['results']);
+        } else {
+          _adminMemberships = [];
+        }
       }
     } catch (e) {
       debugPrint('Error fetching admin memberships: $e');
+      _adminMemberships = [];
     } finally {
       _setLoading(false);
     }
@@ -224,8 +233,10 @@ class FinanceViewModel extends ChangeNotifier {
     if (_selectedGroupId == null) return;
     _setLoading(true);
     try {
-      final response =
-          await _apiService.getAdminGroupSummary(_selectedGroupId!);
+      final response = await _apiService.getAdminGroupSummary(
+        _selectedGroupId!,
+        cycleId: _selectedCycleId,
+      );
       if (response.statusCode == 200) {
         _adminGroupSummary = response.data;
       }
@@ -435,6 +446,10 @@ class FinanceViewModel extends ChangeNotifier {
 
   void setSelectedCycle(int? cycleId) {
     _selectedCycleId = cycleId;
+    if (_selectedGroupId != null) {
+      fetchAdminMemberships();
+      fetchAdminGroupSummary();
+    }
     notifyListeners();
   }
 }

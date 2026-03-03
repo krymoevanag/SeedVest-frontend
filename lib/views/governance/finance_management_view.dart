@@ -379,14 +379,19 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
       itemCount: financeVm.adminMemberships.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final membership =
-            Membership.fromJson(financeVm.adminMemberships[index]);
+        final membership = Membership.fromJson(
+          Map<String, dynamic>.from(financeVm.adminMemberships[index]),
+        );
         return _buildMemberCard(membership);
       },
     );
   }
 
   Widget _buildMemberCard(Membership m) {
+    final lastContributionLabel = m.lastContributionDate == null
+        ? 'No contributions recorded'
+        : 'Last contribution: ${DateFormat('dd MMM yyyy').format(m.lastContributionDate!)}';
+
     return CustomCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -427,6 +432,68 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildMiniBalance(
+                  "Expected",
+                  m.expectedTotal,
+                  Colors.blueGrey,
+                ),
+              ),
+              Expanded(
+                child: _buildMiniBalance(
+                  "Outstanding",
+                  m.outstandingTotal,
+                  m.outstandingTotal > 0 ? AppColors.warning : Colors.green,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildStatusChip(
+                'Total ${m.totalContributionsCount}',
+                Colors.blueGrey,
+              ),
+              _buildStatusChip(
+                'Paid ${m.paidContributionsCount}',
+                Colors.green,
+              ),
+              _buildStatusChip(
+                'Pending ${m.pendingContributionsCount}',
+                Colors.orange,
+              ),
+              _buildStatusChip(
+                'Overdue ${m.overdueContributionsCount}',
+                AppColors.error,
+              ),
+              _buildStatusChip(
+                'Rejected ${m.rejectedContributionsCount}',
+                Colors.brown,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            lastContributionLabel,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[700],
+            ),
+          ),
+          Text(
+            'Amount: ${_currencyFormat.format(m.lastContributionAmount)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -443,6 +510,24 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
               fontSize: 14, fontWeight: FontWeight.bold, color: color),
         ),
       ],
+    );
+  }
+
+  Widget _buildStatusChip(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 

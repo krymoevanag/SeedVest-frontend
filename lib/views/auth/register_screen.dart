@@ -21,6 +21,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _apiService = ApiService();
+  List<Map<String, dynamic>> _groups = [];
+  int? _selectedGroupId;
+  bool _isLoadingGroups = true;
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -37,14 +40,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.addListener(_validateForm);
     _passwordController.addListener(_validateForm);
     _confirmPasswordController.addListener(_validateForm);
+    _loadGroups();
   }
 
   void _validateForm() {
-    bool isValid = (_formKey.currentState?.validate() ?? false) && _termsAccepted;
+    final hasSelectedGroup = !_isLoadingGroups && _selectedGroupId != null;
+    bool isValid =
+        (_formKey.currentState?.validate() ?? false) && _termsAccepted && hasSelectedGroup;
     if (isValid != _isFormValid) {
       setState(() {
         _isFormValid = isValid;
       });
+    }
+  }
+
+  Future<void> _loadGroups() async {
+    try {
+      final response = await _apiService.getGroups();
+      if (!mounted) return;
+      if (response.statusCode == 200 && response.data is List) {
+        setState(() {
+          _groups = (response.data as List)
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+          _isLoadingGroups = false;
+        });
+        _validateForm();
+        return;
+      }
+      setState(() => _isLoadingGroups = false);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingGroups = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to load groups right now. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -167,6 +200,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   validator: _validateEmail,
                 ),
+                const SizedBox(height: 20),
+
+                // Preferred Group
+                _buildFieldTitle('Preferred Group'),
+                if (_isLoadingGroups)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else if (_groups.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12.0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'No groups available for registration right now.',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  )
+                else
+                  DropdownButtonFormField<int>(
+                    initialValue: _selectedGroupId,
+                    decoration: _buildInputDecoration(
+                      'Select your group',
+                      Icons.groups_outlined,
+                    ),
+                    items: _groups.map((group) {
+                      return DropdownMenuItem<int>(
+                        value: group['id'] as int?,
+                        child: Text(group['name'] ?? 'Group ${group['id']}'),
+                      );
+                    }).toList(),
+                    onChanged: _isLoading ? null : (value) {
+                      setState(() => _selectedGroupId = value);
+                      _validateForm();
+                    },
+                    validator: (value) =>
+                        value == null ? 'Please select a group' : null,
+                  ),
                 const SizedBox(height: 20),
 
                 // Password
@@ -318,6 +394,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               'phone_number': _phoneController.text,
                               'password': _passwordController.text,
                               'terms_accepted': _termsAccepted,
+                              'group_id': _selectedGroupId,
                               'password2': _confirmPasswordController
                                   .text, // Added password2 which is required by serializer
                             });
@@ -363,6 +440,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         'You must accept the Terms & Conditions.';
                                   } else if (data.containsKey('detail')) {
                                     errorMessage = data['detail'].toString();
+                                  } else if (data.containsKey('group_id')) {
+                                    final groupError = data['group_id'];
+                                    if (groupError is List) {
+                                      errorMessage = groupError.join('\n');
+                                    } else {
+                                      errorMessage = groupError.toString();
+                                    }
                                   } else {
                                     errorMessage = data.values.join('\n');
                                   }
