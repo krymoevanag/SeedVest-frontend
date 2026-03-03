@@ -342,9 +342,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   Widget _buildConsistencyIndicator(dynamic score) {
     final val = (double.tryParse(score.toString()) ?? 0.0) / 100;
     Color color = Colors.red;
-    if (val > 0.8)
+    if (val > 0.8) {
       color = Colors.green;
-    else if (val > 0.5) color = Colors.orange;
+    } else if (val > 0.5) {
+      color = Colors.orange;
+    }
 
     return Column(
       children: [
@@ -356,7 +358,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           borderRadius: BorderRadius.circular(6),
         ),
         const SizedBox(height: 8),
-        Text('Reliability Score: ${score}%',
+        Text('Reliability Score: $score%',
             style: TextStyle(color: color, fontWeight: FontWeight.bold)),
       ],
     );
