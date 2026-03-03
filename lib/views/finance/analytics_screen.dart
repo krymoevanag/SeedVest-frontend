@@ -14,15 +14,12 @@ class AnalyticsScreen extends StatefulWidget {
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _AnalyticsScreenState extends State<AnalyticsScreen> {
   int? _selectedGroupId;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initialLoad();
     });
@@ -31,12 +28,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   void _initialLoad() async {
     final governanceVM = context.read<GovernanceViewModel>();
     final groups = await governanceVM.fetchGroups();
-    if (groups.isNotEmpty && mounted) {
+    if (!mounted) return;
+
+    if (groups.isNotEmpty && _selectedGroupId == null) {
       setState(() {
         _selectedGroupId = groups.first['id'];
       });
-      _loadData();
     }
+
+    _loadData();
   }
 
   void _loadData() {
@@ -50,72 +50,73 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final userVM = context.watch<UserViewModel>();
     final governanceVM = context.watch<GovernanceViewModel>();
     final isAdmin = userVM.isAdmin || userVM.isTreasurer;
+    final tabCount = isAdmin ? 4 : 3;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Financial Analytics'),
-        actions: [
-          if (governanceVM.groups.isNotEmpty)
-            DropdownButton<int>(
-              value: _selectedGroupId,
-              underline: const SizedBox(),
-              icon: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8.0),
-                child: Icon(Icons.filter_list, color: Colors.white),
-              ),
-              selectedItemBuilder: (context) {
-                return governanceVM.groups.map((group) {
-                  return Center(
-                    child: Text(
-                      group['name'],
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  );
-                }).toList();
-              },
-              items: governanceVM.groups.map<DropdownMenuItem<int>>((group) {
-                return DropdownMenuItem<int>(
-                  value: group['id'],
-                  child: Text(group['name']),
-                );
-              }).toList(),
-              onChanged: (int? newValue) {
-                setState(() {
-                  _selectedGroupId = newValue;
-                });
-                _loadData();
-              },
+    return DefaultTabController(
+      length: tabCount,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Financial Analytics'),
+          actions: [
+            IconButton(
+              tooltip: 'Refresh analytics',
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh),
             ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabs: [
-            const Tab(text: 'Overview'),
-            const Tab(text: 'Performance'),
-            const Tab(text: 'Investments'),
-            if (isAdmin) const Tab(text: 'Group Analysis'),
+            if (governanceVM.groups.isNotEmpty)
+              DropdownButton<int>(
+                value: _selectedGroupId,
+                underline: const SizedBox(),
+                icon: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Icon(Icons.filter_list, color: Colors.white),
+                ),
+                selectedItemBuilder: (context) {
+                  return governanceVM.groups.map((group) {
+                    return Center(
+                      child: Text(
+                        group['name'],
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    );
+                  }).toList();
+                },
+                items: governanceVM.groups.map<DropdownMenuItem<int>>((group) {
+                  return DropdownMenuItem<int>(
+                    value: group['id'],
+                    child: Text(group['name']),
+                  );
+                }).toList(),
+                onChanged: (int? newValue) {
+                  setState(() {
+                    _selectedGroupId = newValue;
+                  });
+                  _loadData();
+                },
+              ),
+          ],
+          bottom: TabBar(
+            isScrollable: true,
+            tabs: [
+              const Tab(text: 'Overview'),
+              const Tab(text: 'Performance'),
+              const Tab(text: 'Investments'),
+              if (isAdmin) const Tab(text: 'Group Analysis'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildOverviewTab(),
+            _buildPerformanceTab(),
+            _buildInvestmentsTab(),
+            if (isAdmin) _buildGroupAnalysisTab(),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildOverviewTab(),
-          _buildPerformanceTab(),
-          _buildInvestmentsTab(),
-          if (isAdmin) _buildGroupAnalysisTab(),
-        ],
       ),
     );
   }
@@ -282,7 +283,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     return Consumer<FinanceViewModel>(
       builder: (context, viewModel, child) {
         final groupStats = viewModel.groupAnalytics?['group_metrics'];
-        if (groupStats == null) {
+        if (_selectedGroupId == null || groupStats == null) {
           return const Center(
               child: Text('Select a group to view aggregate analytics.'));
         }
