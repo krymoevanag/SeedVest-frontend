@@ -120,7 +120,7 @@ class _FinancialSecretaryReportViewState extends State<FinancialSecretaryReportV
       child: Consumer<GovernanceViewModel>(
         builder: (context, gViewModel, child) {
           return DropdownButtonFormField<int>(
-            value: _selectedGroupId,
+            initialValue: _selectedGroupId,
             decoration: const InputDecoration(
               labelText: 'Filtered Group',
               border: OutlineInputBorder(),

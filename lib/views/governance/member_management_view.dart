@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/governance_viewmodel.dart';
 import '../../viewmodels/contributions_viewmodel.dart';
+import '../../viewmodels/user_viewmodel.dart';
 import '../../data/models/user.dart';
 import '../../core/network/api_service.dart';
 import '../../core/theme/colors.dart';
