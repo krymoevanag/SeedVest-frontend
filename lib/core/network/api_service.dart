@@ -651,4 +651,10 @@ class ApiService {
   Future<Response> assignUserToGroup(Map<String, dynamic> data) async {
     return await dio.post('groups/memberships/', data: data);
   }
+  Future<Response> getFinancialSecretaryReport(int groupId, {int? cycleId}) async {
+    return await dio.get('finance/reports/financial/', queryParameters: {
+      'group_id': groupId,
+      if (cycleId != null) 'cycle_id': cycleId,
+    });
+  }
 }

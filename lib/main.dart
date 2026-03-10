@@ -36,6 +36,7 @@ import 'views/governance/contribution_management_view.dart';
 import 'views/governance/admin_member_registration_view.dart';
 import 'views/finance/financial_insights_view.dart';
 import 'views/finance/financial_reports_view.dart';
+import 'views/finance/financial_secretary_report_view.dart';
 import 'views/finance/auto_saving_config_view.dart';
 import 'views/finance/savings_targets_view.dart';
 import 'views/support/help_screen.dart';
@@ -301,6 +302,7 @@ class _SeedVestAppState extends State<SeedVestApp> {
             const AdminMemberRegistrationView(),
         '/finance/insights': (context) => const FinancialInsightsView(),
         '/finance/reports': (context) => const FinancialReportsView(),
+        '/finance/reports/oversight': (context) => const FinancialSecretaryReportView(),
         '/finance/auto-savings': (context) => const AutoSavingConfigView(),
         '/finance/targets': (context) => const SavingsTargetsView(),
         '/help': (context) => const HelpScreen(),

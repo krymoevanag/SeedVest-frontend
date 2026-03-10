@@ -125,6 +125,9 @@ class _AdminMemberRegistrationViewState
                   DropdownMenuItem(value: 'MEMBER', child: Text('Member')),
                   DropdownMenuItem(
                       value: 'TREASURER', child: Text('Treasurer')),
+                  DropdownMenuItem(
+                      value: 'FINANCIAL_SECRETARY',
+                      child: Text('Financial Secretary')),
                   DropdownMenuItem(value: 'ADMIN', child: Text('Admin')),
                 ],
                 onChanged: (val) => setState(() => _selectedRole = val!),

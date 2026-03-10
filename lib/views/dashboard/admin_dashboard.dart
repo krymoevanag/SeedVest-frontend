@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/colors.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
+import '../../viewmodels/user_viewmodel.dart';
 import '../widgets/custom_card.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -181,6 +182,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ],
             ),
 
+            if (context.watch<UserViewModel>().isTreasurer) ...[
             const SizedBox(height: 32),
 
             // Quick Actions
@@ -245,6 +247,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ],
               ),
             ),
+            ],
           ],
         ),
       ),
@@ -301,3 +304,5 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
+
+

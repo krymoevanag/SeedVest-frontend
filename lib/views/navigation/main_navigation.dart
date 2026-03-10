@@ -39,14 +39,14 @@ class _MainNavigationState extends State<MainNavigation> {
 
     // Rebuild screens list based on role
     _screens = [
-      userViewModel.isAdmin ? const AdminDashboard() : const MemberDashboard(),
+      userViewModel.canViewAdminDashboard ? const AdminDashboard() : const MemberDashboard(),
       const AnalyticsScreen(),
       const ContributionsView(),
       const InvestmentsView(),
     ];
 
     _titles = [
-      userViewModel.isAdmin ? 'Admin Dashboard' : 'SeedVest',
+      userViewModel.canViewAdminDashboard ? 'Admin Dashboard' : 'SeedVest',
       'Financial Analytics',
       'My Contributions',
       'Group Investments',
@@ -235,7 +235,11 @@ class _MainNavigationState extends State<MainNavigation> {
               title: const Text('Financial Reports'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/finance/reports');
+                if (userViewModel.isFinancialSecretary) {
+                  Navigator.pushNamed(context, '/finance/reports/oversight');
+                } else {
+                  Navigator.pushNamed(context, '/finance/reports');
+                }
               },
             ),
             ListTile(
@@ -254,7 +258,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 Navigator.pushNamed(context, '/finance/targets');
               },
             ),
-            if (userViewModel.isTreasurer) ...[
+            if (userViewModel.isTreasurer || userViewModel.isFinancialSecretary) ...[
               const Divider(),
               const Padding(
                 padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
@@ -262,14 +266,16 @@ class _MainNavigationState extends State<MainNavigation> {
                     style: TextStyle(
                         fontWeight: FontWeight.bold, color: Colors.grey)),
               ),
-              ListTile(
-                leading: const Icon(Icons.how_to_reg_outlined),
-                title: const Text('Member Approvals'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/governance/approvals');
-                },
-              ),
+              if (userViewModel.isAdmin || userViewModel.isTreasurer) ...[
+                ListTile(
+                  leading: const Icon(Icons.how_to_reg_outlined),
+                  title: const Text('Member Approvals'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/governance/approvals');
+                  },
+                ),
+              ],
               ListTile(
                 leading: const Icon(Icons.account_balance_outlined),
                 title: const Text('Finance Management'),

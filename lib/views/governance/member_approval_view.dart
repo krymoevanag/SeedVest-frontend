@@ -4,6 +4,7 @@ import '../../core/theme/colors.dart';
 import '../../viewmodels/governance_viewmodel.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_card.dart';
+import '../../viewmodels/user_viewmodel.dart';
 
 class MemberApprovalView extends StatefulWidget {
   const MemberApprovalView({super.key});
@@ -94,48 +95,62 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                               ),
                               const Divider(),
                               const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: CustomButton(
-                                      text: 'Approve',
-                                      onPressed: () async {
-                                        final messenger =
-                                            ScaffoldMessenger.of(context);
-                                        bool success = await viewModel
-                                            .approveUser(user.id);
-                                        if (success && mounted) {
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                                content: Text(
-                                                    '${user.fullName} approved!')),
-                                          );
-                                        }
-                                      },
-                                      isLoading: viewModel.isLoading,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () => _showRejectDialog(
-                                          context, user.id, user.fullName),
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 16),
-                                        side:
-                                            const BorderSide(color: Colors.red),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
+                              if (context.read<UserViewModel>().isTreasurer)
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: CustomButton(
+                                        text: 'Approve',
+                                        onPressed: () async {
+                                          final messenger =
+                                              ScaffoldMessenger.of(context);
+                                          bool success = await viewModel
+                                              .approveUser(user.id);
+                                          if (success && mounted) {
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                  content: Text(
+                                                      '${user.fullName} approved!')),
+                                            );
+                                          }
+                                        },
+                                        isLoading: viewModel.isLoading,
                                       ),
-                                      child: const Text('Reject',
-                                          style: TextStyle(color: Colors.red)),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: () => _showRejectDialog(
+                                            context, user.id, user.fullName),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 16),
+                                          side:
+                                              const BorderSide(color: Colors.red),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        child: const Text('Reject',
+                                            style: TextStyle(color: Colors.red)),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else
+                                const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Text(
+                                      'Read-only oversight access',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                          fontStyle: FontStyle.italic),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
                             ],
                           ),
                         ),

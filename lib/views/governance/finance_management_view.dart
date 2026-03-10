@@ -6,6 +6,7 @@ import '../../viewmodels/governance_viewmodel.dart';
 import '../../data/models/membership.dart';
 import '../widgets/custom_card.dart';
 import 'package:intl/intl.dart';
+import '../../viewmodels/user_viewmodel.dart';
 import 'group_settings_view.dart';
 
 class FinanceManagementView extends StatefulWidget {
@@ -189,7 +190,8 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildAdminActions(context, financeVm),
+          if (context.read<UserViewModel>().isTreasurer)
+            _buildAdminActions(context, financeVm),
         ],
       ),
     );
@@ -532,6 +534,9 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
   }
 
   Widget _buildTrailingAction(Membership m) {
+    if (!context.read<UserViewModel>().isTreasurer) {
+      return const SizedBox.shrink();
+    }
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert, color: Colors.grey),
       onSelected: (value) {

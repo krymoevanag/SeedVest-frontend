@@ -188,12 +188,14 @@ class _InvestmentsViewState extends State<InvestmentsView> {
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _showAddInvestmentDialog(context),
-          label: const Text('Propose / Add'),
-          icon: const Icon(Icons.add_business),
-          backgroundColor: AppColors.primary,
-        ),
+        floatingActionButton: !canReviewProposals
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: () => _showAddInvestmentDialog(context),
+                label: const Text('Propose / Add'),
+                icon: const Icon(Icons.add_business),
+                backgroundColor: AppColors.primary,
+              ),
       ),
     );
   }

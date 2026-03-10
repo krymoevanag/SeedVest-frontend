@@ -141,6 +141,8 @@ class UserViewModel extends ChangeNotifier {
   bool get isAdmin =>
       _currentUser?.role == 'ADMIN' || (_currentUser?.isSuperuser ?? false);
   bool get isTreasurer => _currentUser?.role == 'TREASURER' || isAdmin;
+  bool get isFinancialSecretary => _currentUser?.role == 'FINANCIAL_SECRETARY';
+  bool get canViewAdminDashboard => isAdmin || isTreasurer || isFinancialSecretary;
 
   void _setLoading(bool value) {
     _isLoading = value;

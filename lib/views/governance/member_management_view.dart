@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/governance_viewmodel.dart';
 import '../../viewmodels/contributions_viewmodel.dart';
@@ -161,13 +161,13 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                           _buildFinanceRow('Total Penalties',
                                               user.totalPenalties, Colors.red),
                                           const Divider(height: 24),
-                                          Row(
+                                          if (context.read<UserViewModel>().isTreasurer) Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceAround,
                                             children: [
                                               _buildActionButton(
                                                 icon: Icons.add_circle_outline,
-                                                label: 'Contrib',
+                                                label: "Contrib",
                                                 onPressed: () =>
                                                     _showAddContributionDialog(
                                                         context, user),
@@ -175,14 +175,14 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                               ),
                                               _buildActionButton(
                                                 icon: Icons.edit_outlined,
-                                                label: 'Role',
+                                                label: "Role",
                                                 onPressed: () =>
                                                     _showRoleDialog(
                                                         context, user),
                                               ),
                                               _buildActionButton(
                                                 icon: Icons.gavel_outlined,
-                                                label: 'Penalty',
+                                                label: "Penalty",
                                                 onPressed: () =>
                                                     _showPenaltyDialog(
                                                         context, user),
@@ -191,7 +191,7 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                               _buildActionButton(
                                                 icon: Icons
                                                     .delete_forever_outlined,
-                                                label: 'Delete',
+                                                label: "Delete",
                                                 onPressed: () =>
                                                     _showConfirmDeleteDialog(
                                                         context, user),
@@ -199,7 +199,7 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                               ),
                                               _buildActionButton(
                                                 icon: Icons.refresh_outlined,
-                                                label: 'Reset',
+                                                label: "Reset",
                                                 onPressed: () =>
                                                     _showResetDialog(
                                                         context, user),
@@ -207,13 +207,25 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                               ),
                                               _buildActionButton(
                                                 icon: Icons.group_add_outlined,
-                                                label: 'Groups',
+                                                label: "Groups",
                                                 onPressed: () =>
                                                     _showMemberGroupsDialog(
                                                         context, user),
-                                                color: Colors.blue.shade700,
                                               ),
                                             ],
+                                          ) else const Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                  vertical: 8.0),
+                                              child: Text(
+                                                "Read-only access for Financial Secretary",
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey,
+                                                  fontStyle: FontStyle.italic,
+                                                ),
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -453,6 +465,11 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                           title: const Text('Admin'),
                           subtitle: const Text('Full dashboard access'),
                           value: 'ADMIN',
+                        ),
+                        RadioListTile<String>(
+                          title: const Text('Financial Secretary'),
+                          subtitle: const Text('Financial oversight access'),
+                          value: 'FINANCIAL_SECRETARY',
                         ),
                         RadioListTile<String>(
                           title: const Text('Treasurer'),
@@ -1008,3 +1025,4 @@ class _MemberManagementViewState extends State<MemberManagementView> {
     );
   }
 }
+
