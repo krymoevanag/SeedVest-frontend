@@ -19,6 +19,7 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<GovernanceViewModel>().fetchPendingUsers();
+      context.read<GovernanceViewModel>().fetchGroups();
     });
   }
 
@@ -29,7 +30,10 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
     return Scaffold(
       appBar: AppBar(title: const Text('Member Approvals')),
       body: RefreshIndicator(
-        onRefresh: viewModel.fetchPendingUsers,
+        onRefresh: () async {
+          await viewModel.fetchPendingUsers();
+          await viewModel.fetchGroups();
+        },
         child: viewModel.isLoading && viewModel.pendingUsers.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : viewModel.pendingUsers.isEmpty
@@ -100,20 +104,9 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                                   children: [
                                     Expanded(
                                       child: CustomButton(
-                                        text: 'Approve',
-                                        onPressed: () async {
-                                          final messenger =
-                                              ScaffoldMessenger.of(context);
-                                          bool success = await viewModel
-                                              .approveUser(user.id);
-                                          if (success && mounted) {
-                                            messenger.showSnackBar(
-                                              SnackBar(
-                                                  content: Text(
-                                                      '${user.fullName} approved!')),
-                                            );
-                                          }
-                                        },
+                                        text: 'Approve & Assign',
+                                        onPressed: () =>
+                                            _showApproveDialog(context, user),
                                         isLoading: viewModel.isLoading,
                                       ),
                                     ),
@@ -275,6 +268,157 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
           ),
         ],
       ),
+    );
+  }
+
+  String _resolveMembershipRole(String role) {
+    final normalized = role.toUpperCase();
+    if (normalized == 'TREASURER' ||
+        normalized == 'FINANCIAL_SECRETARY' ||
+        normalized == 'MEMBER') {
+      return normalized;
+    }
+    return 'MEMBER';
+  }
+
+  void _showApproveDialog(BuildContext context, dynamic user) {
+    int? selectedGroupId;
+    String selectedRole = _resolveMembershipRole(user.role);
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final viewModel = context.watch<GovernanceViewModel>();
+            final groups = viewModel.groups;
+            final hasGroups = groups.isNotEmpty;
+
+            return AlertDialog(
+              title: Text('Approve ${user.fullName}'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Assign Group',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  if (!hasGroups)
+                    Text(
+                      viewModel.isLoading
+                          ? 'Loading groups...'
+                          : 'No groups available. Please create a group first.',
+                      style: TextStyle(
+                        color: viewModel.isLoading
+                            ? Colors.grey
+                            : AppColors.warning,
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedGroupId,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                        hintText: 'Select group (Required)',
+                      ),
+                      items: groups.map<DropdownMenuItem<int>>((g) {
+                        return DropdownMenuItem<int>(
+                          value: g['id'] as int?,
+                          child: Text(g['name'] ?? 'Group ${g['id']}'),
+                        );
+                      }).toList(),
+                      onChanged: (val) =>
+                          setDialogState(() => selectedGroupId = val),
+                    ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Membership Role',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedRole,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'MEMBER', child: Text('Member')),
+                      DropdownMenuItem(
+                          value: 'TREASURER', child: Text('Treasurer')),
+                      DropdownMenuItem(
+                          value: 'FINANCIAL_SECRETARY',
+                          child: Text('Financial Secretary')),
+                    ],
+                    onChanged: (val) {
+                      if (val == null) return;
+                      setDialogState(() => selectedRole = val);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed:
+                      isSubmitting ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting || selectedGroupId == null || !hasGroups
+                      ? null
+                      : () async {
+                          setDialogState(() => isSubmitting = true);
+
+                          final messenger = ScaffoldMessenger.of(context);
+                          final vm = context.read<GovernanceViewModel>();
+                          
+                          // All-in-one approval and assignment with sequential logic in viewmodel
+                          final success = await vm.approveUser(
+                            user.id,
+                            groupId: selectedGroupId,
+                            role: selectedRole,
+                          );
+
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+
+                          if (context.mounted) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(success
+                                    ? '${user.fullName} approved and assigned.'
+                                    : 'Failed to approve member. Check logs.'),
+                                backgroundColor: success
+                                    ? AppColors.success
+                                    : AppColors.error,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Approve'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

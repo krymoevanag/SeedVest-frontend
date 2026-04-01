@@ -47,17 +47,22 @@ class _AuditLogsViewState extends State<AuditLogsView> {
                               child: Icon(Icons.history, color: Colors.white),
                             ),
                             title: Text(
-                              log.title,
+                              log.displayTitle,
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 4),
-                                Text(log.message),
+                                Text(log.notes),
+                                if (log.actorEmail.isNotEmpty)
+                                  Text(
+                                    "By: ${log.actorEmail}",
+                                    style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic),
+                                  ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  DateFormat('MMM dd, yyyy - HH:mm').format(log.date),
+                                  DateFormat('MMM dd, yyyy - HH:mm').format(log.timestamp),
                                   style: const TextStyle(fontSize: 10, color: Colors.grey),
                                 ),
                               ],

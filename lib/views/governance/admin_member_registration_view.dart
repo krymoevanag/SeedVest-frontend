@@ -19,6 +19,15 @@ class _AdminMemberRegistrationViewState
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   String _selectedRole = 'MEMBER';
+  int? _selectedGroupId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<GovernanceViewModel>().fetchGroups();
+    });
+  }
 
   @override
   void dispose() {
@@ -37,6 +46,7 @@ class _AdminMemberRegistrationViewState
       email: _emailController.text.trim(),
       phoneNumber: _phoneController.text.trim(),
       role: _selectedRole,
+      groupId: _selectedGroupId,
     );
 
     if (mounted) {
@@ -114,6 +124,30 @@ class _AdminMemberRegistrationViewState
                     ? 'Phone number is required'
                     : null,
               ),
+              const SizedBox(height: 20),
+              
+              // Group Selection
+              Consumer<GovernanceViewModel>(
+                builder: (context, vm, child) {
+                  return DropdownButtonFormField<int>(
+                    initialValue: _selectedGroupId,
+                    decoration: const InputDecoration(
+                      labelText: 'Assign Group (Mandatory)',
+                      prefixIcon: Icon(Icons.group_outlined),
+                    ),
+                    items: vm.groups.map<DropdownMenuItem<int>>((group) {
+                      return DropdownMenuItem<int>(
+                        value: group['id'],
+                        child: Text(group['name']),
+                      );
+                    }).toList(),
+                    validator: (val) => val == null ? 'Group assignment is required' : null,
+                    onChanged: (val) => setState(() => _selectedGroupId = val),
+                    hint: const Text('Select a group'),
+                  );
+                },
+              ),
+              
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 initialValue: _selectedRole,

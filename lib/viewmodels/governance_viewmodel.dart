@@ -3,6 +3,7 @@ import '../core/network/api_service.dart';
 import '../data/models/user.dart';
 import '../data/models/investment.dart';
 import '../data/models/notification.dart';
+import '../data/models/audit_log.dart';
 
 class GovernanceViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -19,8 +20,11 @@ class GovernanceViewModel extends ChangeNotifier {
   List<Investment> _investments = [];
   List<Investment> get investments => _investments;
 
-  List<NotificationModel> _auditLogs = [];
-  List<NotificationModel> get auditLogs => _auditLogs;
+  final List<NotificationModel> _notifications = [];
+  List<NotificationModel> get notifications => _notifications;
+
+  List<AuditLogModel> _auditLogs = [];
+  List<AuditLogModel> get auditLogs => _auditLogs;
 
   List<dynamic> _groups = [];
   List<dynamic> get groups => _groups;
@@ -40,13 +44,28 @@ class GovernanceViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> approveUser(int userId) async {
+  Future<bool> approveUser(int userId, {int? groupId, String? role}) async {
     _setLoading(true);
     try {
       final response = await _apiService.approveUser(userId);
       if (response.statusCode == 200 || response.statusCode == 204) {
-        _pendingUsers.removeWhere((u) => u.id == userId);
-        notifyListeners();
+        if (groupId != null) {
+          debugPrint('Assigning user $userId to group $groupId after approval...');
+          try {
+            await _apiService.assignUserToGroup({
+              'user': userId,
+              'group': groupId,
+              'role': role ?? 'MEMBER',
+            });
+          } catch (ge) {
+            debugPrint('Non-fatal error assigning group: $ge');
+            // We continue as approval itself succeeded
+          }
+        }
+        
+        // Refresh states sequentially to ensure consistency
+        await fetchPendingUsers();
+        await fetchApprovedUsers();
         return true;
       }
       return false;
@@ -140,7 +159,8 @@ class GovernanceViewModel extends ChangeNotifier {
       final response = await _apiService.getAuditLogs();
       if (response.statusCode == 200) {
         final List data = response.data;
-        _auditLogs = data.map((e) => NotificationModel.fromJson(e)).toList();
+        _auditLogs = data.map((e) => AuditLogModel.fromJson(e)).toList();
+        notifyListeners();
       }
     } catch (e) {
       debugPrint('Error fetching audit logs: $e');
@@ -173,17 +193,24 @@ class GovernanceViewModel extends ChangeNotifier {
     required String email,
     required String phoneNumber,
     required String role,
+    int? groupId,
   }) async {
     _setLoading(true);
     try {
       final names = fullName.split(' ');
-      final response = await _apiService.adminRegisterUser({
+      final Map<String, dynamic> payload = {
         'email': email,
         'first_name': names.first,
         'last_name': names.length > 1 ? names.sublist(1).join(' ') : '',
         'phone_number': phoneNumber,
         'role': role,
-      });
+      };
+
+      if (groupId != null) {
+        payload['group_ids'] = [groupId];
+      }
+
+      final response = await _apiService.adminRegisterUser(payload);
 
       if (response.statusCode == 201) {
         await fetchApprovedUsers(); // Refresh the list
@@ -330,11 +357,49 @@ class GovernanceViewModel extends ChangeNotifier {
       });
       if (response.statusCode == 201) {
         await fetchApprovedUsers(); // Refresh the list
+        await fetchGroups(); // Refresh groups for membership count
         return true;
       }
       return false;
     } catch (e) {
       debugPrint('Error assigning user to group: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> updateMembershipRole(int membershipId, String role) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.updateMembership(
+        membershipId,
+        {'role': role},
+      );
+      if (response.statusCode == 200) {
+        await fetchApprovedUsers();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error updating membership role: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> removeFromGroup(int membershipId) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.deleteMembership(membershipId);
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        await fetchApprovedUsers();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error removing from group: $e');
       return false;
     } finally {
       _setLoading(false);

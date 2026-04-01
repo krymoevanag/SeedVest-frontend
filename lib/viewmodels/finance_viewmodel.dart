@@ -452,4 +452,58 @@ class FinanceViewModel extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  Future<bool> updateContribution(int id, Map<String, dynamic> data) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.updateContribution(id, data);
+      if (response.statusCode == 200) {
+        await fetchAdminMemberships();
+        await fetchAdminGroupSummary();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error updating contribution: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> archiveContribution(int id, String reason) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.archiveContribution(id, reason);
+      if (response.statusCode == 200) {
+        await fetchAdminMemberships();
+        await fetchAdminGroupSummary();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error archiving contribution: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> archivePenalty(int id, String reason) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.archivePenalty(id, reason);
+      if (response.statusCode == 200) {
+        await fetchAdminMemberships();
+        await fetchAdminGroupSummary();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error archiving penalty: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
 }

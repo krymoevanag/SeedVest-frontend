@@ -43,7 +43,7 @@ class ApiService {
       onRequest: (options, handler) async {
         String? token = await storage.read(key: 'access_token');
 
-        if (token != null && !_isPublicEndpoint(options.path)) {
+        if (!_isPublicEndpoint(options.path)) {
           options.headers['Authorization'] = 'Bearer $token';
         }
 
@@ -469,6 +469,24 @@ class ApiService {
     );
   }
 
+  Future<Response> updateContribution(int id, Map<String, dynamic> data) async {
+    return await dio.patch('finance/contributions/$id/', data: data);
+  }
+
+  Future<Response> archiveContribution(int id, String reason) async {
+    return await dio.delete(
+      'finance/contributions/$id/',
+      data: {'reason': reason},
+    );
+  }
+
+  Future<Response> archivePenalty(int id, String reason) async {
+    return await dio.delete(
+      'finance/penalties/$id/',
+      data: {'reason': reason},
+    );
+  }
+
   Future<Response> getAuditLogs() async {
     return await dio.get('notifications/notifications/');
   }
@@ -646,6 +664,10 @@ class ApiService {
   Future<Response> updateMembership(
       int membershipId, Map<String, dynamic> data) async {
     return await dio.patch('groups/memberships/$membershipId/', data: data);
+  }
+
+  Future<Response> deleteMembership(int membershipId) async {
+    return await dio.delete('groups/memberships/$membershipId/');
   }
 
   Future<Response> assignUserToGroup(Map<String, dynamic> data) async {

@@ -19,7 +19,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DashboardViewModel>().fetchDashboardData();
+      context.read<DashboardViewModel>().refreshStats();
     });
   }
 
@@ -31,7 +31,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
     final currencyFormat = NumberFormat.currency(symbol: 'KES ');
 
     return RefreshIndicator(
-      onRefresh: viewModel.fetchDashboardData,
+      onRefresh: viewModel.refreshStats,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         physics: const AlwaysScrollableScrollPhysics(),

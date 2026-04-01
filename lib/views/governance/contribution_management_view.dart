@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../viewmodels/contributions_viewmodel.dart';
+import '../../data/models/contribution.dart';
 import '../../core/network/api_service.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_card.dart';
@@ -16,19 +17,6 @@ class ContributionManagementView extends StatefulWidget {
 
 class _ContributionManagementViewState
     extends State<ContributionManagementView> {
-  String _formatPaymentMethod(String? method) {
-    if (method == null || method.isEmpty) {
-      return 'N/A';
-    }
-    return method
-        .toLowerCase()
-        .split('_')
-        .map((part) => part.isEmpty
-            ? part
-            : '${part[0].toUpperCase()}${part.substring(1)}')
-        .join(' ');
-  }
-
   @override
   void initState() {
     super.initState();
@@ -46,9 +34,10 @@ class _ContributionManagementViewState
       for (final member in viewModel.members)
         if (member['id'] is int) member['id'] as int: member,
     };
-    // Only show PENDING contributions for management
-    final pendingContributions =
-        viewModel.contributions.where((c) => c.status == 'PENDING').toList();
+    // Filter to show active contributions (PENDING and PAID) for management
+    final activeContributions = viewModel.contributions
+        .where((c) => (c.status == 'PENDING' || c.status == 'PAID') && !c.isLocked)
+        .toList();
     final currencyFormat = NumberFormat.currency(symbol: 'KES ');
 
     return Scaffold(
@@ -62,7 +51,7 @@ class _ContributionManagementViewState
       ),
       body: viewModel.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : pendingContributions.isEmpty
+          : activeContributions.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -70,7 +59,7 @@ class _ContributionManagementViewState
                       Icon(Icons.account_balance_wallet_outlined,
                           size: 64, color: Colors.grey[400]),
                       const SizedBox(height: 16),
-                      Text('No pending contributions',
+                      Text('No active contributions found',
                           style:
                               TextStyle(color: Colors.grey[600], fontSize: 18)),
                     ],
@@ -80,9 +69,9 @@ class _ContributionManagementViewState
                   onRefresh: viewModel.fetchContributions,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: pendingContributions.length,
+                    itemCount: activeContributions.length,
                     itemBuilder: (context, index) {
-                      final contribution = pendingContributions[index];
+                      final contribution = activeContributions[index];
                       final member = memberById[contribution.userId];
                       final memberName = ((member?['full_name'] ?? '')
                               .toString()
@@ -129,14 +118,29 @@ class _ContributionManagementViewState
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(
-                                      currencyFormat
-                                          .format(contribution.amount),
-                                      style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                      ),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          currencyFormat
+                                              .format(contribution.amount),
+                                          style: const TextStyle(
+                                            color: AppColors.primary,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                        Text(
+                                          contribution.status,
+                                          style: TextStyle(
+                                            color: contribution.status == 'PAID'
+                                              ? Colors.green
+                                              : Colors.orange,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold
+                                          )
+                                        )
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -145,12 +149,6 @@ class _ContributionManagementViewState
                                   'Submitted: ${DateFormat('dd MMM yyyy').format(contribution.date)}',
                                   style: TextStyle(
                                       color: Colors.grey[600], fontSize: 13),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Group ID: ${contribution.groupId}',
-                                  style: TextStyle(
-                                      color: Colors.grey[600], fontSize: 12),
                                 ),
                                 if (contribution.isManualEntry) ...[
                                   const SizedBox(height: 8),
@@ -162,7 +160,7 @@ class _ContributionManagementViewState
                                       borderRadius: BorderRadius.circular(999),
                                     ),
                                     child: const Text(
-                                      'Manual proposal',
+                                      'Manual entry',
                                       style: TextStyle(
                                         color: Colors.blue,
                                         fontWeight: FontWeight.w600,
@@ -170,71 +168,60 @@ class _ContributionManagementViewState
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Method: ${_formatPaymentMethod(contribution.reportedPaymentMethod)}',
-                                    style: TextStyle(
-                                        color: Colors.grey[700], fontSize: 13),
-                                  ),
-                                  if (contribution.reportedPaidDate != null)
-                                    Text(
-                                      'Reported paid date: ${DateFormat('dd MMM yyyy').format(contribution.reportedPaidDate!)}',
-                                      style: TextStyle(
-                                          color: Colors.grey[700],
-                                          fontSize: 13),
-                                    ),
-                                  if ((contribution.reportedReference ?? '')
-                                      .isNotEmpty)
-                                    Text(
-                                      'Reference: ${contribution.reportedReference}',
-                                      style: TextStyle(
-                                          color: Colors.grey[700],
-                                          fontSize: 13),
-                                    ),
-                                  if ((contribution.reportedNote ?? '')
-                                      .isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      child: Text(
-                                        'Note: ${contribution.reportedNote}',
-                                        style: TextStyle(
-                                            color: Colors.grey[700],
-                                            fontSize: 13),
-                                      ),
-                                    ),
-                                ],
-                                if (contribution.transactionId != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Tx ID: ${contribution.transactionId}',
-                                    style: TextStyle(
-                                        color: Colors.grey[500], fontSize: 12),
-                                  ),
                                 ],
                                 const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton(
-                                        onPressed: () => _confirmAction(
-                                            context, 'reject', contribution.id),
-                                        style: OutlinedButton.styleFrom(
-                                            foregroundColor: Colors.red),
-                                        child: const Text('Reject'),
+                                if (contribution.status == 'PENDING')
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton(
+                                          onPressed: () => _confirmAction(
+                                              context, 'reject', contribution.id),
+                                          style: OutlinedButton.styleFrom(
+                                              foregroundColor: Colors.red),
+                                          child: const Text('Reject'),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: ElevatedButton(
-                                        onPressed: () => _confirmAction(context,
-                                            'approve', contribution.id),
-                                        style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primary),
-                                        child: const Text('Approve'),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: ElevatedButton(
+                                          onPressed: () => _confirmAction(context,
+                                              'approve', contribution.id),
+                                          style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.primary),
+                                          child: const Text('Approve'),
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  )
+                                else if (contribution.status == 'PAID')
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () => _showEditDialog(context, contribution),
+                                          icon: const Icon(Icons.edit_outlined, size: 18),
+                                          label: const Text('Edit'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.blue,
+                                            side: const BorderSide(color: Colors.blue)
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () => _confirmAction(context, 'archive', contribution.id),
+                                          icon: const Icon(Icons.archive_outlined, size: 18),
+                                          label: const Text('Archive'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: Colors.orange,
+                                            side: const BorderSide(color: Colors.orange)
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                               ],
                             ),
                           ),
@@ -243,6 +230,54 @@ class _ContributionManagementViewState
                     },
                   ),
                 ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, Contribution contribution) {
+    final amountController = TextEditingController(text: contribution.amount.toString());
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Edit Contribution"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Correction of logged amount. This will recalculate cycle totals."),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Amount (KES)",
+                prefixText: "KES ",
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              final val = double.tryParse(amountController.text);
+              if (val == null || val <= 0) return;
+              
+              final vm = Provider.of<ContributionsViewModel>(context, listen: false);
+              final success = await vm.updateContribution(contribution.id, {'amount': val});
+              
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? "Updated successfully" : "Update failed"),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  )
+                );
+              }
+            },
+            child: const Text("Save Changes"),
+          )
+        ],
+      ),
     );
   }
 
@@ -258,14 +293,14 @@ class _ContributionManagementViewState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Are you sure you want to $action this contribution?'),
-            if (action == 'reject') ...[
+            if (action == 'reject' || action == 'archive') ...[
               const SizedBox(height: 12),
               TextField(
                 controller: reasonController,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Rejection reason',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: action == 'reject' ? 'Rejection reason' : 'Reason for archiving',
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -279,10 +314,10 @@ class _ContributionManagementViewState
           TextButton(
             onPressed: () async {
               final reason = reasonController.text.trim();
-              if (action == 'reject' && reason.isEmpty) {
+              if ((action == 'reject' || action == 'archive') && reason.isEmpty) {
                 ScaffoldMessenger.of(this.context).showSnackBar(
                   const SnackBar(
-                    content: Text('Rejection reason is required.'),
+                    content: Text('A reason is required.'),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -294,6 +329,8 @@ class _ContributionManagementViewState
               final bool success;
               if (action == 'approve') {
                 success = await viewModel.approveContribution(id);
+              } else if (action == 'archive') {
+                success = await viewModel.archiveContribution(id, reason);
               } else {
                 success = await viewModel.rejectContribution(id, reason);
               }

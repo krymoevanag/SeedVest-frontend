@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/colors.dart';
 import '../../viewmodels/penalties_viewmodel.dart';
+import '../../viewmodels/user_viewmodel.dart';
 import '../widgets/custom_card.dart';
 
 class PenaltiesView extends StatefulWidget {
@@ -103,27 +104,40 @@ class _PenaltiesViewState extends State<PenaltiesView> {
                                 ),
                               ],
                             ),
-                            trailing: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  currencyFormat.format(penalty.amount),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.error,
-                                  ),
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      currencyFormat.format(penalty.amount),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.error,
+                                      ),
+                                    ),
+                                    Text(
+                                      penalty.status,
+                                      style: TextStyle(
+                                        color: penalty.status == 'PAID'
+                                            ? Colors.green
+                                            : Colors.red,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  penalty.status,
-                                  style: TextStyle(
-                                    color: penalty.status == 'PAID'
-                                        ? Colors.green
-                                        : Colors.red,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
+                                if (context.read<UserViewModel>().isTreasurer ||
+                                    context.read<UserViewModel>().isAdmin)
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline,
+                                        color: Colors.grey, size: 20),
+                                    onPressed: () => _showArchiveDialog(
+                                        context, viewModel, penalty.id),
                                   ),
-                                ),
                               ],
                             ),
                           ),
@@ -131,6 +145,68 @@ class _PenaltiesViewState extends State<PenaltiesView> {
                       );
                     },
                   ),
+      ),
+    );
+  }
+
+  void _showArchiveDialog(
+      BuildContext context, PenaltiesViewModel viewModel, int id) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Archive Penalty"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                "Are you sure you want to archive this penalty? This action will be audit-logged and the Financial Secretary will be notified."),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: "Reason for archiving",
+                hintText: "e.g., Logged incorrectly",
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final reason = reasonController.text.trim();
+              if (reason.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Please provide a reason")),
+                );
+                return;
+              }
+
+              final success = await viewModel.archivePenalty(id, reason);
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success
+                        ? "Penalty archived successfully"
+                        : "Failed to archive penalty"),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              }
+            },
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text("Archive"),
+          ),
+        ],
       ),
     );
   }

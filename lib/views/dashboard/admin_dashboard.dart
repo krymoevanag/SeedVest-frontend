@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/colors.dart';
@@ -76,8 +76,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<DashboardViewModel>();
+    final userViewModel = context.watch<UserViewModel>();
     final stats = viewModel.adminStats;
+    final isLoading = viewModel.isLoading;
+    final error = viewModel.error;
+    
     final currencyFormat = NumberFormat.currency(symbol: 'KES ');
+
+    if (isLoading && stats.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (error != null && stats.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 16),
+            Text(error, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => viewModel.fetchAdminStats(),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
     final totalUsers = _readInt(
       stats,
       const ['total_users', 'all_members', 'members_count'],
@@ -109,16 +136,27 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
 
     return RefreshIndicator(
-      onRefresh: viewModel.fetchAdminStats,
+      onRefresh: viewModel.refreshStats,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'System Overview',
-              style: Theme.of(context).textTheme.titleLarge,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'System Overview',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                if (isLoading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -137,7 +175,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   icon: Icons.people_outline,
                   color: Colors.blue,
                   onTap: () =>
-                      Navigator.pushNamed(context, '/governance/roles'),
+                      Navigator.pushNamed(context, '/governance/roles')
+                          .then((_) => viewModel.refreshStats()),
                 ),
                 _StatCard(
                   title: 'Pending Approvals',
@@ -145,7 +184,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   icon: Icons.how_to_reg,
                   color: Colors.orange,
                   onTap: () =>
-                      Navigator.pushNamed(context, '/governance/approvals'),
+                      Navigator.pushNamed(context, '/governance/approvals')
+                          .then((_) => viewModel.refreshStats()),
                 ),
                 _StatCard(
                   title: 'Total Savings',
@@ -154,7 +194,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   color: Colors.green,
                   isCurrency: true,
                   onTap: () =>
-                      Navigator.pushNamed(context, '/governance/contributions'),
+                      Navigator.pushNamed(context, '/governance/contributions')
+                          .then((_) => viewModel.refreshStats()),
                 ),
                 _StatCard(
                   title: 'Total Penalties',
@@ -162,7 +203,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   icon: Icons.gavel,
                   color: Colors.redAccent,
                   isCurrency: true,
-                  onTap: () => Navigator.pushNamed(context, '/penalties'),
+                  onTap: () => Navigator.pushNamed(context, '/penalties')
+                      .then((_) => viewModel.refreshStats()),
                 ),
                 _StatCard(
                   title: 'Grand Total',
@@ -177,12 +219,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   icon: Icons.pending_actions,
                   color: Colors.amber,
                   onTap: () =>
-                      Navigator.pushNamed(context, '/governance/contributions'),
+                      Navigator.pushNamed(context, '/governance/contributions')
+                          .then((_) => viewModel.refreshStats()),
                 ),
               ],
             ),
 
-            if (context.watch<UserViewModel>().isTreasurer) ...[
+            if (userViewModel.isTreasurer) ...[
             const SizedBox(height: 32),
 
             // Quick Actions
@@ -201,7 +244,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     subtitle: const Text('Manually add a member to the system'),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () => Navigator.pushNamed(
-                        context, '/governance/register-member'),
+                        context, '/governance/register-member')
+                        .then((_) => viewModel.refreshStats()),
                   ),
                   const Divider(),
                   ListTile(
@@ -212,8 +256,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         const Text('Approve or reject pending applications'),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () =>
-                        Navigator.pushNamed(context, '/governance/approvals'),
+                        Navigator.pushNamed(context, '/governance/approvals')
+                        .then((_) => viewModel.refreshStats()),
                   ),
+                  if (userViewModel.isAdmin) ...[
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(Icons.group_add_outlined,
+                          color: AppColors.primary),
+                      title: const Text('Assign Member Groups'),
+                      subtitle: const Text('Add members to groups or roles'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () =>
+                          Navigator.pushNamed(context, '/governance/roles')
+                          .then((_) => viewModel.refreshStats()),
+                    ),
+                  ],
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.send_rounded,
@@ -223,7 +281,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         const Text('Send internal message to all members'),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () =>
-                        Navigator.pushNamed(context, '/governance/broadcast'),
+                        Navigator.pushNamed(context, '/governance/broadcast')
+                        .then((_) => viewModel.refreshStats()),
                   ),
                   const Divider(),
                   ListTile(
@@ -234,7 +293,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         const Text('Create or update investment portfolios'),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () =>
-                        Navigator.pushNamed(context, '/governance/finance'),
+                        Navigator.pushNamed(context, '/governance/finance')
+                        .then((_) => viewModel.refreshStats()),
                   ),
                   const Divider(),
                   ListTile(
@@ -242,7 +302,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     title: const Text('Manage Penalties'),
                     subtitle: const Text('Review and apply penalties'),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: () => Navigator.pushNamed(context, '/penalties'),
+                    onTap: () => Navigator.pushNamed(context, '/penalties')
+                        .then((_) => viewModel.refreshStats()),
                   ),
                 ],
               ),
@@ -304,5 +365,3 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
-
-

@@ -32,6 +32,23 @@ class PenaltiesViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> archivePenalty(int id, String reason) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.archivePenalty(id, reason);
+      if (response.statusCode == 200) {
+        await fetchPenalties();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error archiving penalty: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();

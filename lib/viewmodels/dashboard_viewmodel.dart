@@ -14,13 +14,16 @@ class DashboardViewModel extends ChangeNotifier {
   List<Contribution> _recentContributions = [];
   List<Contribution> get recentContributions => _recentContributions;
 
-  
   // Admin Stats
   Map<String, dynamic> _adminStats = {};
   Map<String, dynamic> get adminStats => _adminStats;
 
+  String? _error;
+  String? get error => _error;
+
   Future<void> fetchDashboardData() async {
     _setLoading(true);
+    _error = null;
     try {
       final response = await _apiService.getContributions();
       if (response.statusCode == 200) {
@@ -33,6 +36,7 @@ class DashboardViewModel extends ChangeNotifier {
             .fold(0.0, (sum, item) => sum + item.amount);
       }
     } catch (e) {
+      _error = 'Failed to load dashboard data';
       debugPrint('Error fetching dashboard: $e');
     } finally {
       _setLoading(false);
@@ -41,20 +45,40 @@ class DashboardViewModel extends ChangeNotifier {
 
   Future<void> fetchAdminStats() async {
     _setLoading(true);
+    _error = null;
     try {
       final response = await _apiService.getAdminStats();
+      debugPrint('RAW ADMIN STATS RESPONSE: ${response.data}');
       if (response.statusCode == 200) {
         if (response.data is Map) {
-          _adminStats = Map<String, dynamic>.from(response.data as Map);
+          final data = Map<String, dynamic>.from(response.data as Map);
+          
+          // Defensive parsing for total users/members
+          final totalUsers = data['total_users'] ?? 
+                             data['total_members'] ?? 
+                             data['members_count'] ?? 
+                             data['users_total'] ?? 0;
+          
+          data['total_users'] = totalUsers;
+          _adminStats = data;
         } else {
           _adminStats = {};
         }
       }
     } catch (e) {
+      _error = 'Failed to load system stats';
       debugPrint('Error fetching admin stats: $e');
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// Centralized refresh for all dashboard stats
+  Future<void> refreshStats() async {
+    await Future.wait([
+      fetchAdminStats(),
+      fetchDashboardData(),
+    ]);
   }
 
   void _setLoading(bool value) {

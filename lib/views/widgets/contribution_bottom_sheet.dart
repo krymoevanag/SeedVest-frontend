@@ -650,7 +650,7 @@ class _ContributionBottomSheetState extends State<ContributionBottomSheet> {
 
   void _refreshData(ContributionsViewModel cvm, DashboardViewModel dvm) {
     cvm.fetchContributions();
-    dvm.fetchDashboardData();
+    dvm.refreshStats();
     if (widget.onSuccess != null) widget.onSuccess!();
   }
 }

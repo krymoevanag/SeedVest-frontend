@@ -19,6 +19,7 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
+  DateTime? _lastBackPressed;
 
   List<Widget> _screens = []; // Initialize empty
 
@@ -100,7 +101,31 @@ class _MainNavigationState extends State<MainNavigation> {
     final user = userViewModel.currentUser;
     final unreadCount = notificationViewModel.unreadCountForBar;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        final now = DateTime.now();
+        final backButtonHasNotBeenPressedRecently = _lastBackPressed == null ||
+            now.difference(_lastBackPressed!) > const Duration(seconds: 2);
+
+        if (backButtonHasNotBeenPressedRecently) {
+          _lastBackPressed = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tap back again to exit'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+
+        // If we reach here, it means the second tap was within 2 seconds.
+        // We allow the pop (exit app).
+        Navigator.of(context).pop();
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
         elevation: 0,
@@ -359,6 +384,7 @@ class _MainNavigationState extends State<MainNavigation> {
           BottomNavigationBarItem(
               icon: Icon(Icons.trending_up), label: 'Invest'),
         ],
+      ),
       ),
     );
   }

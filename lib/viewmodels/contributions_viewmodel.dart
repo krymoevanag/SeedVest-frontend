@@ -222,6 +222,46 @@ class ContributionsViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateContribution(int id, Map<String, dynamic> data) async {
+    _setLoading(true);
+    _actionError = null;
+    try {
+      final response = await _apiService.updateContribution(id, data);
+      if (response.statusCode == 200) {
+        await fetchContributions();
+        return true;
+      }
+      _actionError = _extractErrorMessage(response.data) ?? 'Failed to update';
+      return false;
+    } catch (e) {
+      debugPrint('Error updating contribution: $e');
+      _actionError = 'Failed to update contribution';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> archiveContribution(int id, String reason) async {
+    _setLoading(true);
+    _actionError = null;
+    try {
+      final response = await _apiService.archiveContribution(id, reason);
+      if (response.statusCode == 200) {
+        await fetchContributions();
+        return true;
+      }
+      _actionError = _extractErrorMessage(response.data) ?? 'Failed to archive';
+      return false;
+    } catch (e) {
+      debugPrint('Error archiving contribution: $e');
+      _actionError = 'Failed to archive contribution';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();

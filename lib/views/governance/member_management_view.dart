@@ -39,6 +39,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<GovernanceViewModel>();
+    final canManageMembers = context.read<UserViewModel>().isAdmin ||
+        context.read<UserViewModel>().isTreasurer;
     final users = viewModel.approvedUsers.where((user) {
       final name = user.fullName.toLowerCase();
       final email = user.email.toLowerCase();
@@ -162,7 +164,7 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                           _buildFinanceRow('Total Penalties',
                                               user.totalPenalties, Colors.red),
                                           const Divider(height: 24),
-                                          if (context.read<UserViewModel>().isTreasurer) Row(
+                                          if (canManageMembers) Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceAround,
                                             children: [
@@ -868,6 +870,32 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                             : 'Role: $role - Joined ${DateFormat('dd MMM yyyy').format(joinedAt)}',
                         style: TextStyle(color: Colors.grey[700], fontSize: 12),
                       ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 20),
+                            onPressed: () => _showEditMembershipRoleDialog(
+                              context,
+                              membership['id'],
+                              membership['group_name'] ?? 'Group',
+                              role,
+                            ),
+                            tooltip: 'Edit Role',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.group_remove_outlined,
+                                size: 20, color: Colors.red),
+                            onPressed: () => _showRemoveFromGroupDialog(
+                              context,
+                              membership['id'],
+                              membership['group_name'] ?? 'Group',
+                              user.fullName,
+                            ),
+                            tooltip: 'Remove from Group',
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -1017,6 +1045,129 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                         )
                       : const Text('Assign',
                           style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditMembershipRoleDialog(
+      BuildContext context, int membershipId, String groupName, String currentRole) {
+    String selectedRole = currentRole;
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text('Edit Role in $groupName'),
+              content: DropdownButtonFormField<String>(
+                initialValue: selectedRole,
+                decoration: const InputDecoration(
+                  labelText: 'Select Role',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'MEMBER', child: Text('Member')),
+                  DropdownMenuItem(value: 'TREASURER', child: Text('Treasurer')),
+                ],
+                onChanged: (val) => setDialogState(() => selectedRole = val!),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting || selectedRole == currentRole
+                      ? null
+                      : () async {
+                          setDialogState(() => isSubmitting = true);
+                          final success = await context
+                              .read<GovernanceViewModel>()
+                              .updateMembershipRole(membershipId, selectedRole);
+
+                          if (dialogContext.mounted) Navigator.pop(dialogContext);
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success
+                                    ? 'Role updated successfully!'
+                                    : 'Failed to update role'),
+                                backgroundColor: success ? Colors.green : Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Update'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showRemoveFromGroupDialog(
+      BuildContext context, int membershipId, String groupName, String userName) {
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Remove from Group'),
+              content: Text('Are you sure you want to remove $userName from $groupName? '
+                  'Historical contributions will be preserved but the member will no longer be active in this group.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          setDialogState(() => isSubmitting = true);
+                          final success = await context
+                              .read<GovernanceViewModel>()
+                              .removeFromGroup(membershipId);
+
+                          if (dialogContext.mounted) Navigator.pop(dialogContext);
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success
+                                    ? 'Member removed from group successfully!'
+                                    : 'Failed to remove member'),
+                                backgroundColor: success ? Colors.green : Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Remove', style: TextStyle(color: Colors.white)),
                 ),
               ],
             );

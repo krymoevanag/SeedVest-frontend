@@ -12,8 +12,15 @@ val newBuildDir: Directory =
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
+    val sharedBuildRoot = newBuildDir.asFile.toPath().root?.toString()?.lowercase()
+    val projectRoot = project.projectDir.toPath().root?.toString()?.lowercase()
+
+    // Keep external Flutter plugins on their native drive to avoid Windows path
+    // relativization errors when the app lives on a different drive.
+    if (projectRoot == sharedBuildRoot) {
+        val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+        project.layout.buildDirectory.value(newSubprojectBuildDir)
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")
