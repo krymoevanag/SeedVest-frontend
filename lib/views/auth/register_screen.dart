@@ -362,7 +362,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           try {
                             // Check connectivity first
                             final isConnected =
-                                await _apiService.checkConnectivity();
+                                await _apiService.isOnline;
 
                             if (!isConnected) {
                               if (!mounted) return;

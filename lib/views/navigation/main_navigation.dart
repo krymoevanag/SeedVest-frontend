@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../core/theme/colors.dart';
@@ -9,6 +10,7 @@ import '../finance/contributions_view.dart';
 import '../finance/analytics_screen.dart';
 import '../finance/investments_view.dart';
 import '../dashboard/admin_dashboard.dart';
+import '../../core/network/connectivity_service.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -20,6 +22,9 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
   DateTime? _lastBackPressed;
+  bool _isOnline = true;
+  late StreamSubscription<bool> _connectivitySubscription;
+  final ConnectivityService _connectivityService = ConnectivityService();
 
   List<Widget> _screens = []; // Initialize empty
 
@@ -28,9 +33,30 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void initState() {
     super.initState();
+    _connectivityService.init();
+    _connectivitySubscription = _connectivityService.onConnectivityChanged.listen((online) {
+      if (mounted) {
+        setState(() => _isOnline = online);
+      }
+    });
+
+    // Check initial status
+    _connectivityService.isConnected.then((online) {
+      if (mounted) {
+        setState(() => _isOnline = online);
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<NotificationViewModel>().refreshNotificationsState();
     });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription.cancel();
+    _connectivityService.dispose();
+    super.dispose();
   }
 
   @override
@@ -122,8 +148,8 @@ class _MainNavigationState extends State<MainNavigation> {
         }
 
         // If we reach here, it means the second tap was within 2 seconds.
-        // We allow the pop (exit app).
-        Navigator.of(context).pop();
+        // We trigger a system-level pop to exit the app gracefully.
+        SystemNavigator.pop();
       },
       child: Scaffold(
       appBar: AppBar(
@@ -362,9 +388,31 @@ class _MainNavigationState extends State<MainNavigation> {
           ],
         ),
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens,
+      body: Column(
+        children: [
+          if (!_isOnline)
+            Container(
+              width: double.infinity,
+              color: Colors.orange.shade800,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: const Row(
+                children: [
+                  Icon(Icons.wifi_off, color: Colors.white, size: 16),
+                  SizedBox(width: 12),
+                  Text(
+                    'Offline Mode: Viewing cached data',
+                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: _screens,
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,

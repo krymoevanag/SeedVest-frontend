@@ -16,7 +16,7 @@ class UserViewModel extends ChangeNotifier {
   Future<void> fetchProfile() async {
     _setLoading(true);
     try {
-      final response = await _apiService.dio.get('accounts/users/me/');
+      final response = await _apiService.getProfile();
       if (response.statusCode == 200) {
         _currentUser = User.fromJson(response.data);
         // Start inactivity service once profile is successfully loaded
@@ -24,7 +24,6 @@ class UserViewModel extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error fetching profile: $e');
-      // For demo/dev purposes, if /me/ doesn't exist yet, we might fallback or set a dummy
     } finally {
       _setLoading(false);
     }

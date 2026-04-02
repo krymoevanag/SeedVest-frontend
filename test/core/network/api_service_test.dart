@@ -23,10 +23,10 @@ void main() {
     });
 
     test(
-      'checkConnectivity should return false when server is unreachable',
+      'isOnline should return false when server is unreachable',
       () async {
         apiService.dio.httpClientAdapter = _FailingHttpClientAdapter();
-        final result = await apiService.checkConnectivity();
+        final result = await apiService.isOnline;
         expect(result, isFalse);
       },
     );
