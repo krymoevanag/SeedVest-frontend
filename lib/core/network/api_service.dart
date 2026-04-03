@@ -308,7 +308,6 @@ class ApiService {
 
   Future<Response> login(String email, String password) async {
     try {
-      await _ensureOnline();
       final response = await dio.post('accounts/login/', data: {
         'email': email,
         'password': password,
@@ -353,8 +352,30 @@ class ApiService {
             statusCode: 200,
             data: {'detail': 'Offline login succeeded'},
           );
+        } else {
+          // Offline credentials not found or invalid
+          throw DioException(
+            requestOptions: RequestOptions(path: 'accounts/login/'),
+            error: 'Unable to login offline. Please check your credentials and try again when online.',
+            type: DioExceptionType.unknown,
+          );
         }
       }
+
+      // Handle network errors when offline mode is disabled
+      if (!AppConfig.isOfflineModeEnabled &&
+          (e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.sendTimeout ||
+              e.type == DioExceptionType.connectionError)) {
+        throw DioException(
+          requestOptions: RequestOptions(path: 'accounts/login/'),
+          error: 'No internet connection available. Please check your connection and try again.',
+          type: DioExceptionType.connectionError,
+        );
+      }
+
+      // Re-throw other DioExceptions (like 401 unauthorized, etc.)
       rethrow;
     }
   }
