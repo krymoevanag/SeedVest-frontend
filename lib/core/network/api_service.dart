@@ -356,7 +356,8 @@ class ApiService {
           // Offline credentials not found or invalid
           throw DioException(
             requestOptions: RequestOptions(path: 'accounts/login/'),
-            error: 'Unable to login offline. Please check your credentials and try again when online.',
+            error:
+                'Unable to login offline. Please check your credentials and try again when online.',
             type: DioExceptionType.unknown,
           );
         }
@@ -370,7 +371,8 @@ class ApiService {
               e.type == DioExceptionType.connectionError)) {
         throw DioException(
           requestOptions: RequestOptions(path: 'accounts/login/'),
-          error: 'No internet connection available. Please check your connection and try again.',
+          error:
+              'No internet connection available. Please check your connection and try again.',
           type: DioExceptionType.connectionError,
         );
       }
