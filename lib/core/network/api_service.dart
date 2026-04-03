@@ -1,4 +1,7 @@
 // lib/core/network/api_service.dart
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/config.dart';
@@ -39,6 +42,14 @@ class ApiService {
     dio.options.baseUrl = AppConfig.apiUrl;
     dio.options.connectTimeout = const Duration(seconds: 30);
     dio.options.receiveTimeout = const Duration(seconds: 30);
+
+    // Keep connectivity listener active for background sync of offline writes
+    _connectivityService.init();
+    _connectivityService.onConnectivityChanged.listen((online) {
+      if (online && AppConfig.isOfflineModeEnabled) {
+        syncPendingWrites();
+      }
+    });
 
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
@@ -107,6 +118,31 @@ class ApiService {
   /// Connectivity check
   Future<bool> get isOnline async => await _connectivityService.isConnected;
 
+  /// Hash a password for local offline credential check
+  Future<String> _hashPassword(String password) async {
+    final bytes = utf8.encode(password);
+    return sha256.convert(bytes).toString();
+  }
+
+  /// Persist offline-safe credentials
+  Future<void> _storeOfflineCredentials(String email, String password) async {
+    final hashed = await _hashPassword(password);
+    await storage.write(key: 'offline_login_email', value: email);
+    await storage.write(key: 'offline_login_password_hash', value: hashed);
+  }
+
+  /// Validate offline login credentials
+  Future<bool> _validateOfflineCredentials(
+      String email, String password) async {
+    final storedEmail = await storage.read(key: 'offline_login_email');
+    final storedHash = await storage.read(key: 'offline_login_password_hash');
+    if (storedEmail == null || storedHash == null) return false;
+    if (storedEmail.toLowerCase() != email.trim().toLowerCase()) return false;
+
+    final attemptHash = await _hashPassword(password);
+    return attemptHash == storedHash;
+  }
+
   /// Helper to ensure network is available for write operations
   Future<void> _ensureOnline() async {
     if (!await isOnline) {
@@ -115,6 +151,104 @@ class ApiService {
         error: 'Network connection required for this action.',
         type: DioExceptionType.connectionError,
       );
+    }
+  }
+
+  /// Queue offline-compatible write operations in Hive
+  Future<void> _queueOfflineRequest({
+    required String method,
+    required String path,
+    Map<String, dynamic>? data,
+  }) async {
+    final request = {
+      'method': method,
+      'path': path,
+      'data': data ?? {},
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+    await _cacheService.addPendingWrite(request);
+  }
+
+  /// Execute a write request with offline queuing fallback
+  Future<Response> _executeWithOfflineQueue(
+    String method,
+    String path, {
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      await _ensureOnline();
+      late Response response;
+
+      if (method == 'POST') {
+        response = await dio.post(path, data: data);
+      } else if (method == 'PATCH') {
+        response = await dio.patch(path, data: data);
+      } else if (method == 'PUT') {
+        response = await dio.put(path, data: data);
+      } else if (method == 'DELETE') {
+        response = await dio.delete(path, data: data);
+      } else {
+        throw ArgumentError('Unsupported HTTP method: $method');
+      }
+
+      if (AppConfig.isOfflineModeEnabled) {
+        await syncPendingWrites();
+      }
+
+      return response;
+    } on DioException catch (e) {
+      // Use offline queue when internet is unavailable
+      if (AppConfig.isOfflineModeEnabled &&
+          (e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.sendTimeout ||
+              e.type == DioExceptionType.connectionError)) {
+        await _queueOfflineRequest(method: method, path: path, data: data);
+        return Response(
+          requestOptions: RequestOptions(path: path),
+          statusCode: 202,
+          data: {
+            'detail': 'Operation queued for offline sync',
+            'queued_request': {'method': method, 'path': path, 'data': data},
+          },
+        );
+      }
+
+      rethrow;
+    }
+  }
+
+  /// Process pending offline write requests when connectivity is restored.
+  Future<void> syncPendingWrites() async {
+    if (!AppConfig.isOfflineModeEnabled || !await isOnline) return;
+
+    final pending = _cacheService.getPendingWrites();
+    if (pending.isEmpty) return;
+
+    final remainingQueue = <Map<String, dynamic>>[];
+
+    for (final request in pending) {
+      final method = request['method'] as String?;
+      final path = request['path'] as String?;
+      final data = request['data'] as Map<String, dynamic>?;
+
+      if (method == null || path == null) continue;
+
+      try {
+        await _executeWithOfflineQueue(method, path, data: data);
+      } catch (_) {
+        // Keep this request and don't delete yet if failed.
+        remainingQueue.add(request);
+      }
+    }
+
+    if (remainingQueue.isEmpty) {
+      await _cacheService.clearPendingWrites();
+    } else {
+      await _cacheService.clearPendingWrites();
+      for (final item in remainingQueue) {
+        await _cacheService.addPendingWrite(item);
+      }
     }
   }
 
@@ -173,28 +307,56 @@ class ApiService {
   // ======================
 
   Future<Response> login(String email, String password) async {
-    await _ensureOnline();
-    final response = await dio.post('accounts/login/', data: {
-      'email': email,
-      'password': password,
-    });
+    try {
+      await _ensureOnline();
+      final response = await dio.post('accounts/login/', data: {
+        'email': email,
+        'password': password,
+      });
 
-    if (response.data['access'] != null) {
-      await storage.write(key: 'access_token', value: response.data['access']);
-    }
-    if (response.data['refresh'] != null) {
-      await storage.write(
-          key: 'refresh_token', value: response.data['refresh']);
-    }
-    if (response.data['role'] != null) {
-      await storage.write(key: 'user_role', value: response.data['role']);
-    }
-    if (response.data['user_id'] != null) {
-      await storage.write(
-          key: 'user_id', value: response.data['user_id'].toString());
-    }
+      if (response.statusCode == 200) {
+        if (response.data['access'] != null) {
+          await storage.write(
+              key: 'access_token', value: response.data['access']);
+        }
+        if (response.data['refresh'] != null) {
+          await storage.write(
+              key: 'refresh_token', value: response.data['refresh']);
+        }
+        if (response.data['role'] != null) {
+          await storage.write(key: 'user_role', value: response.data['role']);
+        }
+        if (response.data['user_id'] != null) {
+          await storage.write(
+              key: 'user_id', value: response.data['user_id'].toString());
+        }
 
-    return response;
+        // Save offline credential for fallback login
+        if (AppConfig.isOfflineModeEnabled) {
+          await _storeOfflineCredentials(email, password);
+        }
+      }
+
+      return response;
+    } on DioException catch (e) {
+      // Offline login fallback when app is in offline mode and there is no network
+      if (AppConfig.isOfflineModeEnabled &&
+          (e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.sendTimeout ||
+              e.type == DioExceptionType.connectionError)) {
+        final verified = await _validateOfflineCredentials(email, password);
+        if (verified) {
+          // Keep existing tokens if present, but permit use of cached offline data
+          return Response(
+            requestOptions: RequestOptions(path: 'accounts/login/'),
+            statusCode: 200,
+            data: {'detail': 'Offline login succeeded'},
+          );
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<bool> isBiometricEnabled() async {
@@ -245,7 +407,8 @@ class ApiService {
   }
 
   Future<Response> getProfile() async {
-    return await _getWithCache('accounts/users/me/', customCacheKey: 'user_profile');
+    return await _getWithCache('accounts/users/me/',
+        customCacheKey: 'user_profile');
   }
 
   Future<Response> getNotifications() async {
@@ -258,28 +421,30 @@ class ApiService {
 
   Future<Response> updateNotificationPreferences(
       Map<String, dynamic> data) async {
-    await _ensureOnline();
-    return await dio.patch('notifications/preferences/', data: data);
+    return await _executeWithOfflineQueue(
+      'PATCH',
+      'notifications/preferences/',
+      data: data,
+    );
   }
 
   Future<Response> markNotificationRead(int id) async {
-    await _ensureOnline();
-    return await dio.post('notifications/$id/mark_read/');
+    return await _executeWithOfflineQueue(
+        'POST', 'notifications/$id/mark_read/');
   }
 
   Future<Response> markAllAllRead() async {
-    await _ensureOnline();
-    return await dio.post('notifications/mark_all_read/');
+    return await _executeWithOfflineQueue(
+        'POST', 'notifications/mark_all_read/');
   }
 
   Future<Response> sendNotification(Map<String, dynamic> data) async {
-    await _ensureOnline();
-    return await dio.post('notifications/', data: data);
+    return await _executeWithOfflineQueue('POST', 'notifications/', data: data);
   }
 
   Future<Response> broadcastNotification(Map<String, dynamic> data) async {
-    await _ensureOnline();
-    return await dio.post('notifications/broadcast/', data: data);
+    return await _executeWithOfflineQueue('POST', 'notifications/broadcast/',
+        data: data);
   }
 
   Future<Response> logout() async {
@@ -303,13 +468,13 @@ class ApiService {
   }
 
   Future<Response> register(Map<String, dynamic> userData) async {
-    await _ensureOnline();
-    return await dio.post('accounts/register/', data: userData);
+    return await _executeWithOfflineQueue('POST', 'accounts/register/',
+        data: userData);
   }
 
   Future<Response> updateProfile(Map<String, dynamic> userData) async {
-    await _ensureOnline();
-    return await dio.patch('accounts/users/me/', data: userData);
+    return await _executeWithOfflineQueue('PATCH', 'accounts/users/me/',
+        data: userData);
   }
 
   Future<Response> changePassword({
@@ -317,15 +482,13 @@ class ApiService {
     required String newPassword,
     required String confirmPassword,
   }) async {
-    await _ensureOnline();
-    return await dio.post(
-      'accounts/users/change-password/',
-      data: {
-        'current_password': currentPassword,
-        'new_password': newPassword,
-        'confirm_password': confirmPassword,
-      },
-    );
+    return await _executeWithOfflineQueue(
+        'POST', 'accounts/users/change-password/',
+        data: {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+          'confirm_password': confirmPassword,
+        });
   }
 
   Future<Response> updateProfilePicture(String filePath) async {
@@ -348,8 +511,8 @@ class ApiService {
   // ======================
 
   Future<Response> requestPasswordReset(String email) async {
-    await _ensureOnline();
-    return await dio.post('accounts/password-reset/', data: {'email': email});
+    return await _executeWithOfflineQueue('POST', 'accounts/password-reset/',
+        data: {'email': email});
   }
 
   Future<Response> confirmPasswordReset({
@@ -386,17 +549,19 @@ class ApiService {
   }
 
   Future<Response> getContributions() async {
-    return await _getWithCache('finance/contributions/', customCacheKey: 'contributions');
+    return await _getWithCache('finance/contributions/',
+        customCacheKey: 'contributions');
   }
 
   Future<Response> proposeManualContribution(
       Map<String, dynamic> proposalData) async {
-    await _ensureOnline();
-    return await dio.post('finance/contributions/', data: proposalData);
+    return await _executeWithOfflineQueue('POST', 'finance/contributions/',
+        data: proposalData);
   }
 
   Future<Response> getPenalties() async {
-    return await _getWithCache('finance/penalties/', customCacheKey: 'penalties');
+    return await _getWithCache('finance/penalties/',
+        customCacheKey: 'penalties');
   }
 
   Future<Response> getInvestments({
@@ -422,30 +587,33 @@ class ApiService {
         if (member != null && member.isNotEmpty) 'member': member,
         if (amountMin != null) 'amount_min': amountMin,
         if (amountMax != null) 'amount_max': amountMax,
-        if (dateFrom != null) 'date_from': dateFrom.toIso8601String().split('T')[0],
+        if (dateFrom != null)
+          'date_from': dateFrom.toIso8601String().split('T')[0],
         if (dateTo != null) 'date_to': dateTo.toIso8601String().split('T')[0],
       },
     );
   }
 
   Future<Response> createInvestment(Map<String, dynamic> data) async {
-    await _ensureOnline();
-    return await dio.post('finance/investments/', data: data);
+    return await _executeWithOfflineQueue('POST', 'finance/investments/',
+        data: data);
   }
 
   Future<Response> approveInvestment(int id, Map<String, dynamic> data) async {
-    await _ensureOnline();
-    return await dio.post('finance/investments/$id/approve/', data: data);
+    return await _executeWithOfflineQueue(
+        'POST', 'finance/investments/$id/approve/',
+        data: data);
   }
 
   Future<Response> rejectInvestment(int id, Map<String, dynamic> data) async {
-    await _ensureOnline();
-    return await dio.post('finance/investments/$id/reject/', data: data);
+    return await _executeWithOfflineQueue(
+        'POST', 'finance/investments/$id/reject/',
+        data: data);
   }
 
   Future<Response> issuePenalty(Map<String, dynamic> data) async {
-    await _ensureOnline();
-    return await dio.post('finance/penalties/', data: data);
+    return await _executeWithOfflineQueue('POST', 'finance/penalties/',
+        data: data);
   }
 
   // ======================
@@ -467,66 +635,70 @@ class ApiService {
   }
 
   Future<Response> adminRegisterUser(Map<String, dynamic> userData) async {
-    await _ensureOnline();
-    return await dio.post('accounts/users/admin_register/', data: userData);
+    return await _executeWithOfflineQueue(
+        'POST', 'accounts/users/admin_register/',
+        data: userData);
   }
 
   Future<Response> approveUser(int userId) async {
-    await _ensureOnline();
-    return await dio.post('accounts/users/$userId/approve/');
+    return await _executeWithOfflineQueue(
+        'POST', 'accounts/users/$userId/approve/');
   }
 
   Future<Response> rejectUser(int userId, String reason) async {
-    await _ensureOnline();
-    return await dio
-        .post('accounts/users/$userId/reject/', data: {'reason': reason});
+    return await _executeWithOfflineQueue(
+      'POST',
+      'accounts/users/$userId/reject/',
+      data: {'reason': reason},
+    );
   }
 
   Future<Response> updateUserRole(int userId, String role) async {
-    await _ensureOnline();
-    return await dio
-        .post('accounts/users/$userId/set_role/', data: {'role': role});
+    return await _executeWithOfflineQueue(
+      'POST',
+      'accounts/users/$userId/set_role/',
+      data: {'role': role},
+    );
   }
 
   Future<Response> deleteUser(int userId) async {
-    await _ensureOnline();
-    return await dio.delete('accounts/users/$userId/');
+    return await _executeWithOfflineQueue('DELETE', 'accounts/users/$userId/');
   }
 
   Future<Response> deleteSelfAccount() async {
-    await _ensureOnline();
-    return await dio.delete('accounts/users/delete_account/');
+    return await _executeWithOfflineQueue(
+        'DELETE', 'accounts/users/delete_account/');
   }
 
   Future<Response> approveContribution(int id) async {
-    await _ensureOnline();
-    return await dio.post('finance/contributions/$id/approve/');
+    return await _executeWithOfflineQueue(
+        'POST', 'finance/contributions/$id/approve/');
   }
 
   Future<Response> rejectContribution(int id, String reason) async {
-    await _ensureOnline();
-    return await dio.post(
+    return await _executeWithOfflineQueue(
+      'POST',
       'finance/contributions/$id/reject/',
       data: {'reason': reason},
     );
   }
 
   Future<Response> updateContribution(int id, Map<String, dynamic> data) async {
-    await _ensureOnline();
-    return await dio.patch('finance/contributions/$id/', data: data);
+    return await _executeWithOfflineQueue('PATCH', 'finance/contributions/$id/',
+        data: data);
   }
 
   Future<Response> archiveContribution(int id, String reason) async {
-    await _ensureOnline();
-    return await dio.delete(
+    return await _executeWithOfflineQueue(
+      'DELETE',
       'finance/contributions/$id/',
       data: {'reason': reason},
     );
   }
 
   Future<Response> archivePenalty(int id, String reason) async {
-    await _ensureOnline();
-    return await dio.delete(
+    return await _executeWithOfflineQueue(
+      'DELETE',
       'finance/penalties/$id/',
       data: {'reason': reason},
     );
@@ -537,8 +709,9 @@ class ApiService {
   }
 
   Future<Response> adminAddContribution(Map<String, dynamic> data) async {
-    await _ensureOnline();
-    return await dio.post('finance/admin-add-contribution/', data: data);
+    return await _executeWithOfflineQueue(
+        'POST', 'finance/admin-add-contribution/',
+        data: data);
   }
 
   Future<Response> resetFinanceHistory(
@@ -555,7 +728,8 @@ class ApiService {
   }
 
   Future<Response> createAutoSavingConfig(Map<String, dynamic> data) async {
-    return await dio.post('finance/auto-savings/', data: data);
+    return await _executeWithOfflineQueue('POST', 'finance/auto-savings/',
+        data: data);
   }
 
   Future<Response> updateAutoSavingConfig(
@@ -564,7 +738,8 @@ class ApiService {
   }
 
   Future<Response> deleteAutoSavingConfig(int id) async {
-    return await dio.delete('finance/auto-savings/$id/');
+    return await _executeWithOfflineQueue(
+        'DELETE', 'finance/auto-savings/$id/');
   }
 
   Future<Response> getSavingsTargets() async {
@@ -572,7 +747,8 @@ class ApiService {
   }
 
   Future<Response> createSavingsTarget(Map<String, dynamic> data) async {
-    return await dio.post('finance/targets/', data: data);
+    return await _executeWithOfflineQueue('POST', 'finance/targets/',
+        data: data);
   }
 
   Future<Response> updateSavingsTarget(
@@ -581,7 +757,7 @@ class ApiService {
   }
 
   Future<Response> deleteSavingsTarget(int id) async {
-    return await dio.delete('finance/targets/$id/');
+    return await _executeWithOfflineQueue('DELETE', 'finance/targets/$id/');
   }
 
   Future<Response> getFinancialInsights() async {
@@ -602,13 +778,14 @@ class ApiService {
     String? status,
     DateTime? month,
   }) async {
-    return await _getWithCache('finance/monthly-contributions/', queryParameters: {
-      if (groupId != null) 'group_id': groupId,
-      if (cycleId != null) 'cycle_id': cycleId,
-      if (memberId != null) 'member_id': memberId,
-      if (status != null && status.isNotEmpty) 'status': status,
-      if (month != null) 'month': month.toIso8601String().split('T')[0],
-    });
+    return await _getWithCache('finance/monthly-contributions/',
+        queryParameters: {
+          if (groupId != null) 'group_id': groupId,
+          if (cycleId != null) 'cycle_id': cycleId,
+          if (memberId != null) 'member_id': memberId,
+          if (status != null && status.isNotEmpty) 'status': status,
+          if (month != null) 'month': month.toIso8601String().split('T')[0],
+        });
   }
 
   Future<Response> exportMonthlyContributionRecords({
@@ -682,10 +859,11 @@ class ApiService {
   }
 
   Future<Response> getAdminGroupSummary(int groupId, {int? cycleId}) async {
-    return await _getWithCache('finance/admin-group-summary/', queryParameters: {
-      'group_id': groupId,
-      if (cycleId != null) 'cycle_id': cycleId,
-    });
+    return await _getWithCache('finance/admin-group-summary/',
+        queryParameters: {
+          'group_id': groupId,
+          if (cycleId != null) 'cycle_id': cycleId,
+        });
   }
 
   Future<Response> getAutoSaveHistory() async {
@@ -725,7 +903,9 @@ class ApiService {
     await _ensureOnline();
     return await dio.post('groups/memberships/', data: data);
   }
-  Future<Response> getFinancialSecretaryReport(int groupId, {int? cycleId}) async {
+
+  Future<Response> getFinancialSecretaryReport(int groupId,
+      {int? cycleId}) async {
     return await _getWithCache('finance/reports/financial/', queryParameters: {
       'group_id': groupId,
       if (cycleId != null) 'cycle_id': cycleId,
