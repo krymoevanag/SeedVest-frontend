@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/colors.dart';
+import '../../data/models/contribution.dart';
 import '../../viewmodels/finance_viewmodel.dart';
 import '../../viewmodels/governance_viewmodel.dart';
 import '../../data/models/membership.dart';
@@ -496,6 +497,16 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
               fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => _showContributionBreakdown(m),
+            icon: const Icon(Icons.receipt_long_outlined, size: 18),
+            label: const Text('View contribution records'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+            ),
+          ),
         ],
       ),
     );
@@ -569,6 +580,25 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showContributionBreakdown(Membership membership) {
+    final cycleId = context.read<FinanceViewModel>().selectedCycleId;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => FractionallySizedBox(
+        heightFactor: 0.92,
+        child: _ContributionBreakdownSheet(
+          membership: membership,
+          cycleId: cycleId,
+        ),
+      ),
     );
   }
 
@@ -685,6 +715,434 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ContributionBreakdownSheet extends StatefulWidget {
+  final Membership membership;
+  final int? cycleId;
+
+  const _ContributionBreakdownSheet({
+    required this.membership,
+    required this.cycleId,
+  });
+
+  @override
+  State<_ContributionBreakdownSheet> createState() =>
+      _ContributionBreakdownSheetState();
+}
+
+class _ContributionBreakdownSheetState
+    extends State<_ContributionBreakdownSheet> {
+  final NumberFormat _currencyFormat = NumberFormat.currency(symbol: 'KSH ');
+  bool _isLoading = true;
+  String? _error;
+  List<Contribution> _contributions = [];
+  String _statusFilter = 'ALL';
+  String _sortOption = 'Newest first';
+
+  static const List<String> _statusOptions = [
+    'ALL',
+    'PAID',
+    'LATE',
+    'PENDING',
+    'OVERDUE',
+    'REJECTED',
+  ];
+
+  static const List<String> _sortOptions = [
+    'Newest first',
+    'Oldest first',
+    'Amount high-low',
+    'Amount low-high',
+    'Status',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContributions();
+  }
+
+  Future<void> _loadContributions() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final items =
+          await context.read<FinanceViewModel>().getMemberContributionBreakdown(
+                userId: widget.membership.userId,
+                groupId: widget.membership.groupId,
+                cycleId: widget.cycleId,
+              );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _contributions = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = 'Failed to load contribution records.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Contribution> get _visibleContributions {
+    final filtered = _contributions.where((contribution) {
+      if (_statusFilter == 'ALL') {
+        return true;
+      }
+      return contribution.status == _statusFilter;
+    }).toList();
+
+    switch (_sortOption) {
+      case 'Oldest first':
+        filtered.sort((a, b) => a.date.compareTo(b.date));
+        break;
+      case 'Amount high-low':
+        filtered.sort((a, b) => b.amount.compareTo(a.amount));
+        break;
+      case 'Amount low-high':
+        filtered.sort((a, b) => a.amount.compareTo(b.amount));
+        break;
+      case 'Status':
+        filtered.sort((a, b) => a.status.compareTo(b.status));
+        break;
+      case 'Newest first':
+      default:
+        filtered.sort((a, b) => b.date.compareTo(a.date));
+        break;
+    }
+
+    return filtered;
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'PAID':
+        return Colors.green;
+      case 'LATE':
+        return Colors.deepOrange;
+      case 'PENDING':
+        return Colors.orange;
+      case 'OVERDUE':
+        return AppColors.error;
+      case 'REJECTED':
+        return Colors.brown;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeBalance = _contributions
+        .where((item) => item.status == 'PAID' || item.status == 'LATE')
+        .fold<double>(0, (total, item) => total + item.amount);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            widget.membership.fullName,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${widget.membership.groupName} • ${widget.membership.membershipNumber ?? "No membership number"}',
+            style: TextStyle(color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _BreakdownStat(
+                    label: 'Active balance',
+                    value: _currencyFormat.format(activeBalance),
+                    color: AppColors.primary,
+                  ),
+                ),
+                Expanded(
+                  child: _BreakdownStat(
+                    label: 'Transactions',
+                    value: '${_contributions.length}',
+                    color: Colors.blueGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _statusFilter,
+                  decoration: const InputDecoration(
+                    labelText: 'Filter',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _statusOptions
+                      .map(
+                        (option) => DropdownMenuItem<String>(
+                          value: option,
+                          child: Text(option == 'ALL' ? 'All statuses' : option),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) {
+                      return;
+                    }
+                    setState(() => _statusFilter = value);
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _sortOption,
+                  decoration: const InputDecoration(
+                    labelText: 'Sort',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _sortOptions
+                      .map(
+                        (option) => DropdownMenuItem<String>(
+                          value: option,
+                          child: Text(option),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) {
+                      return;
+                    }
+                    setState(() => _sortOption = value);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
+                        child: Text(
+                          _error!,
+                          style: TextStyle(color: Colors.red[700]),
+                        ),
+                      )
+                    : _visibleContributions.isEmpty
+                        ? Center(
+                            child: Text(
+                              _contributions.isEmpty
+                                  ? 'No contribution records found for this member.'
+                                  : 'No records match the selected filter.',
+                              style: TextStyle(color: Colors.grey[600]),
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _loadContributions,
+                            child: ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: _visibleContributions.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final contribution =
+                                    _visibleContributions[index];
+                                final statusColor =
+                                    _statusColor(contribution.status);
+
+                                return Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.grey.withValues(alpha: 0.18),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              _currencyFormat
+                                                  .format(contribution.amount),
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: statusColor.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: Text(
+                                              contribution.status,
+                                              style: TextStyle(
+                                                color: statusColor,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        'Captured: ${DateFormat('dd MMM yyyy, HH:mm').format(contribution.date.toLocal())}',
+                                        style: TextStyle(
+                                          color: Colors.grey[800],
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Due date: ${contribution.dueDate == null ? "Not set" : DateFormat('dd MMM yyyy').format(contribution.dueDate!.toLocal())}',
+                                        style: TextStyle(color: Colors.grey[700]),
+                                      ),
+                                      Text(
+                                        'Paid date: ${contribution.paidDate == null ? "Not paid" : DateFormat('dd MMM yyyy').format(contribution.paidDate!.toLocal())}',
+                                        style: TextStyle(color: Colors.grey[700]),
+                                      ),
+                                      if ((contribution.reportedPaymentMethod ?? '')
+                                          .isNotEmpty)
+                                        Text(
+                                          'Method: ${contribution.reportedPaymentMethod}',
+                                          style:
+                                              TextStyle(color: Colors.grey[700]),
+                                        ),
+                                      if ((contribution.reportedReference ?? '')
+                                          .isNotEmpty)
+                                        Text(
+                                          'Reference: ${contribution.reportedReference}',
+                                          style:
+                                              TextStyle(color: Colors.grey[700]),
+                                        ),
+                                      if ((contribution.reportedNote ?? '').isNotEmpty)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 6),
+                                          child: Text(
+                                            contribution.reportedNote!,
+                                            style: TextStyle(
+                                              color: Colors.grey[700],
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                        ),
+                                      if ((contribution.rejectionReason ?? '')
+                                          .isNotEmpty)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 8),
+                                          child: Text(
+                                            'Review note: ${contribution.rejectionReason}',
+                                            style: TextStyle(
+                                              color: Colors.red[700],
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BreakdownStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _BreakdownStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[700],
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

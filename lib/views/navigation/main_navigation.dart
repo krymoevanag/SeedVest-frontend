@@ -12,6 +12,7 @@ import '../finance/analytics_screen.dart';
 import '../finance/investments_view.dart';
 import '../dashboard/admin_dashboard.dart';
 import '../../core/network/connectivity_service.dart';
+import '../../core/network/api_service.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -25,9 +26,11 @@ class _MainNavigationState extends State<MainNavigation> {
   DateTime? _lastBackPressed;
   bool _isOnline = true;
   int _pendingWrites = 0;
+  bool _isSyncingPendingWrites = false;
   late StreamSubscription<bool> _connectivitySubscription;
   final ConnectivityService _connectivityService = ConnectivityService();
   final CacheService _cacheService = CacheService();
+  final ApiService _apiService = ApiService();
 
   List<Widget> _screens = []; // Initialize empty
 
@@ -65,6 +68,92 @@ class _MainNavigationState extends State<MainNavigation> {
       setState(() {
         _pendingWrites = writes;
       });
+    }
+  }
+
+  Future<void> _syncPendingWrites() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final pendingBefore = _cacheService.getPendingWrites().length;
+
+    if (_isSyncingPendingWrites) return;
+
+    if (pendingBefore == 0) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('There are no offline changes waiting to sync.'),
+        ),
+      );
+      return;
+    }
+
+    if (!_isOnline) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'You are offline. Pending changes will sync once you reconnect.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSyncingPendingWrites = true;
+    });
+
+    try {
+      await _apiService.syncPendingWrites();
+      _refreshPendingWrites();
+
+      if (!mounted) return;
+
+      final pendingAfter = _cacheService.getPendingWrites().length;
+      final syncedCount = pendingBefore - pendingAfter;
+
+      if (syncedCount > 0 && pendingAfter == 0) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              syncedCount == 1
+                  ? 'Offline change synced successfully.'
+                  : '$syncedCount offline changes synced successfully.',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (syncedCount > 0) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              '$syncedCount change(s) synced. $pendingAfter still pending.',
+            ),
+            backgroundColor: Colors.orange.shade800,
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Sync did not complete yet. Pending changes will retry automatically.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to sync offline changes right now.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSyncingPendingWrites = false;
+        });
+      }
     }
   }
 
@@ -233,11 +322,22 @@ class _MainNavigationState extends State<MainNavigation> {
               Padding(
                 padding: const EdgeInsets.only(right: 8.0),
                 child: Tooltip(
-                  message: '$_pendingWrites offline request(s) pending sync',
-                  child: Stack(
+                  message: _isSyncingPendingWrites
+                      ? 'Syncing offline changes...'
+                      : '$_pendingWrites offline request(s) pending sync. Tap to sync now',
+                  child: IconButton(
+                    onPressed: _isSyncingPendingWrites ? null : _syncPendingWrites,
+                    icon: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      const Icon(Icons.sync, size: 24),
+                      if (_isSyncingPendingWrites)
+                        const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        const Icon(Icons.sync, size: 24),
                       Positioned(
                         right: -6,
                         top: -6,
@@ -264,6 +364,7 @@ class _MainNavigationState extends State<MainNavigation> {
                         ),
                       ),
                     ],
+                  ),
                   ),
                 ),
               ),
@@ -411,7 +512,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.manage_accounts_outlined),
-                  title: const Text('Role Management'),
+                  title: const Text('Members & Groups'),
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, '/governance/roles');

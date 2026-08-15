@@ -264,8 +264,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ListTile(
                       leading: const Icon(Icons.group_add_outlined,
                           color: AppColors.primary),
-                      title: const Text('Assign Member Groups'),
-                      subtitle: const Text('Add members to groups or roles'),
+                      title: const Text('Member & Group Management'),
+                      subtitle: const Text(
+                        'Assign members to groups and update roles',
+                      ),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () =>
                           Navigator.pushNamed(context, '/governance/roles')

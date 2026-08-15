@@ -168,6 +168,8 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text.trim().toLowerCase(),
         _passwordController.text,
       );
+      final isOfflineLogin =
+          response.data is Map && response.data['offline_login'] == true;
 
       if (!mounted) return;
 
@@ -177,8 +179,19 @@ class _LoginScreenState extends State<LoginScreen> {
           final userViewModel =
               Provider.of<UserViewModel>(context, listen: false);
           await userViewModel.fetchProfile();
+          if (isOfflineLogin && userViewModel.currentUser == null) {
+            throw DioException(
+              requestOptions: response.requestOptions,
+              error:
+                  'Offline login succeeded, but this device has no saved '
+                  'profile yet. Connect to the internet once to finish setup.',
+              type: DioExceptionType.unknown,
+            );
+          }
           if (mounted) {
-            await _maybePromptBiometricOptIn();
+            if (!isOfflineLogin) {
+              await _maybePromptBiometricOptIn();
+            }
           }
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/dashboard');
@@ -199,8 +212,19 @@ class _LoginScreenState extends State<LoginScreen> {
           e.type == DioExceptionType.receiveTimeout ||
           e.type == DioExceptionType.sendTimeout ||
           e.type == DioExceptionType.connectionError) {
-        errorMessage =
-            "Unable to connect to server. Please check your internet connection.";
+        final deviceOnline = await _apiService.isOnline;
+        if (!mounted) return;
+        if (e.error is String && (e.error as String).trim().isNotEmpty) {
+          errorMessage = e.error.toString();
+        } else if (deviceOnline) {
+          errorMessage =
+              "You're connected to the internet, but SeedVest can't reach the "
+              "server right now. Please try again in a few minutes.";
+        } else {
+          errorMessage =
+              "You appear to be offline. Please check your internet "
+              "connection and try again.";
+        }
       } else if (e.response != null) {
         final status = e.response?.statusCode;
         final data = e.response?.data;
@@ -222,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
           } else {
             errorMessage = "Account access denied. Please contact support.";
           }
-        } else if (status! >= 500) {
+        } else if ((status ?? 0) >= 500) {
           errorMessage = "Server error. Please try again later.";
         } else if (data is Map && data.containsKey("detail")) {
           errorMessage = data["detail"].toString();
@@ -233,6 +257,8 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (data is String && data.isNotEmpty) {
           errorMessage = data;
         }
+      } else if (e.error != null) {
+        errorMessage = e.error.toString();
       }
 
       ScaffoldMessenger.of(context).showSnackBar(

@@ -41,23 +41,42 @@ class _MemberManagementViewState extends State<MemberManagementView> {
     final viewModel = context.watch<GovernanceViewModel>();
     final canManageMembers = context.read<UserViewModel>().isAdmin ||
         context.read<UserViewModel>().isTreasurer;
+    final usersNeedingGroups = viewModel.approvedUsers
+        .where((user) => user.groupIds.isEmpty)
+        .length;
     final users = viewModel.approvedUsers.where((user) {
       final name = user.fullName.toLowerCase();
       final email = user.email.toLowerCase();
+      final role = user.role.toLowerCase();
+      final groupNames = user.groupIds.map((id) {
+        final group = viewModel.groups.firstWhere(
+          (g) => g['id'] == id,
+          orElse: () => null,
+        );
+        return group?['name']?.toString().toLowerCase() ?? '';
+      }).join(' ');
       final query = _searchQuery.toLowerCase();
-      return name.contains(query) || email.contains(query);
+      return name.contains(query) ||
+          email.contains(query) ||
+          role.contains(query) ||
+          groupNames.contains(query);
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Member Management')),
+      appBar: AppBar(title: const Text('Member & Group Management')),
       body: Column(
         children: [
+          if (canManageMembers)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: _buildGroupAssignmentCallout(usersNeedingGroups),
+            ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search members...',
+                hintText: 'Search members, roles, or groups...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -138,6 +157,21 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                                 fontSize: 12,
                                                 color: Colors.grey[600]),
                                           ),
+                                        )
+                                      else
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 6),
+                                          child: Text(
+                                            canManageMembers
+                                                ? 'Needs group assignment'
+                                                : 'No groups assigned yet',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.orange.shade800,
+                                            ),
+                                          ),
                                         ),
                                     ],
                                   ),
@@ -164,9 +198,10 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                           _buildFinanceRow('Total Penalties',
                                               user.totalPenalties, Colors.red),
                                           const Divider(height: 24),
-                                          if (canManageMembers) Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceAround,
+                                          if (canManageMembers) Wrap(
+                                            alignment: WrapAlignment.center,
+                                            spacing: 8,
+                                            runSpacing: 8,
                                             children: [
                                               _buildActionButton(
                                                 icon: Icons.add_circle_outline,
@@ -210,7 +245,9 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                               ),
                                               _buildActionButton(
                                                 icon: Icons.group_add_outlined,
-                                                label: "Groups",
+                                                label: user.groupIds.isEmpty
+                                                    ? "Assign Group"
+                                                    : "Manage Groups",
                                                 onPressed: () =>
                                                     _showMemberGroupsDialog(
                                                         context, user),
@@ -442,6 +479,60 @@ class _MemberManagementViewState extends State<MemberManagementView> {
       onPressed: onPressed,
       icon: Icon(icon, size: 20, color: color),
       label: Text(label, style: TextStyle(color: color)),
+    );
+  }
+
+  Widget _buildGroupAssignmentCallout(int usersNeedingGroups) {
+    final hasUnassignedMembers = usersNeedingGroups > 0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: hasUnassignedMembers
+            ? Colors.orange.shade50
+            : AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasUnassignedMembers
+              ? Colors.orange.shade200
+              : AppColors.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            hasUnassignedMembers
+                ? Icons.group_add_outlined
+                : Icons.check_circle_outline,
+            color: hasUnassignedMembers
+                ? Colors.orange.shade800
+                : AppColors.primary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasUnassignedMembers
+                      ? '$usersNeedingGroups member(s) still need a group'
+                      : 'All approved members already have a group',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasUnassignedMembers
+                      ? 'Open a member card and tap Assign Group to place that member in a group and choose their role.'
+                      : 'Use Manage Groups on any member card to update memberships or move members between groups.',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -726,68 +817,59 @@ class _MemberManagementViewState extends State<MemberManagementView> {
   }
 
   void _showResetDialog(BuildContext context, dynamic user) {
-    bool resetStatus = false;
-
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text('Reset Finance: ${user.fullName}'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'This will clear all contributions and penalties for this member. This action cannot be undone.',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  CheckboxListTile(
-                    title: const Text('Reset Account Status'),
-                    subtitle: const Text('Move back to Under Review'),
-                    value: resetStatus,
-                    onChanged: (val) =>
-                        setDialogState(() => resetStatus = val!),
-                  ),
-                ],
+        return AlertDialog(
+          title: Text('Refresh Finance: ${user.fullName}'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will archive the member’s financial records from active balances, including contributions and penalties.',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    final viewModel = context.read<GovernanceViewModel>();
-                    final navigator = Navigator.of(context);
-                    final messenger = ScaffoldMessenger.of(this.context);
-                    final success = await viewModel.resetFinanceHistory(
-                      user.id,
-                      resetStatus,
-                    );
+              SizedBox(height: 12),
+              Text(
+                'The member account, profile, identity, and group memberships will remain intact.',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final viewModel = context.read<GovernanceViewModel>();
+                final navigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(this.context);
+                final success = await viewModel.resetFinanceHistory(
+                  user.id,
+                  false,
+                );
 
-                    if (mounted) {
-                      navigator.pop();
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(success
-                              ? 'Financial history reset successfully'
-                              : 'Failed to reset history'),
-                          backgroundColor:
-                              success ? AppColors.success : AppColors.error,
-                        ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade800,
-                  ),
-                  child: const Text('Confirm Reset'),
-                ),
-              ],
-            );
-          },
+                if (mounted) {
+                  navigator.pop();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(success
+                          ? 'Financial records archived successfully'
+                          : 'Failed to refresh financial records'),
+                      backgroundColor:
+                          success ? AppColors.success : AppColors.error,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade800,
+              ),
+              child: const Text('Archive Records'),
+            ),
+          ],
         );
       },
     );

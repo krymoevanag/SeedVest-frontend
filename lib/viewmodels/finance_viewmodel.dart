@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/network/api_service.dart';
+import '../data/models/contribution.dart';
 import '../data/models/financial_cycle.dart';
 import '../data/models/monthly_contribution_record.dart';
 
@@ -201,6 +202,33 @@ class FinanceViewModel extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<List<Contribution>> getMemberContributionBreakdown({
+    required int userId,
+    required int groupId,
+    int? cycleId,
+  }) async {
+    try {
+      final response = await _apiService.getContributions(
+        userId: userId,
+        groupId: groupId,
+        cycleId: cycleId,
+        ordering: '-created_at',
+      );
+      if (response.statusCode == 200 && response.data is List) {
+        return (response.data as List)
+            .map(
+              (entry) => Contribution.fromJson(
+                Map<String, dynamic>.from(entry),
+              ),
+            )
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Error fetching member contribution breakdown: $e');
+    }
+    return [];
   }
 
   Future<void> fetchAdminMemberships({String? search}) async {

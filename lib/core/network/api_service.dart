@@ -10,6 +10,14 @@ import 'connectivity_service.dart';
 
 class ApiService {
   static const String _biometricEnabledKey = 'biometric_enabled';
+  static const String _accessTokenKey = 'access_token';
+  static const String _refreshTokenKey = 'refresh_token';
+  static const String _userRoleKey = 'user_role';
+  static const String _userIdKey = 'user_id';
+  static const String _offlineLoginEmailKey = 'offline_login_email';
+  static const String _offlineLoginPasswordHashKey =
+      'offline_login_password_hash';
+  static const String _offlineUserProfileKey = 'offline_login_user_profile';
 
   final Dio dio = Dio();
   final FlutterSecureStorage storage = const FlutterSecureStorage();
@@ -25,6 +33,13 @@ class ApiService {
         normalizedPath.startsWith('token/') ||
         normalizedPath.startsWith('groups/groups/') ||
         normalizedPath.startsWith('health/');
+  }
+
+  bool _isConnectionFailure(DioException e) {
+    return e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.connectionError;
   }
 
   String _normalizeMpesaPhone(String phone) {
@@ -53,7 +68,7 @@ class ApiService {
 
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        String? token = await storage.read(key: 'access_token');
+        final token = await storage.read(key: _accessTokenKey);
 
         if (!_isPublicEndpoint(options.path)) {
           options.headers['Authorization'] = 'Bearer $token';
@@ -69,7 +84,7 @@ class ApiService {
         }
 
         if (e.response?.statusCode == 401) {
-          final refreshToken = await storage.read(key: 'refresh_token');
+          final refreshToken = await storage.read(key: _refreshTokenKey);
           if (refreshToken != null) {
             try {
               final response = await dio.post('token/refresh/', data: {
@@ -77,13 +92,13 @@ class ApiService {
               });
 
               await storage.write(
-                key: 'access_token',
+                key: _accessTokenKey,
                 value: response.data['access'],
               );
 
               if (response.data['refresh'] != null) {
                 await storage.write(
-                  key: 'refresh_token',
+                  key: _refreshTokenKey,
                   value: response.data['refresh'],
                 );
               }
@@ -105,7 +120,7 @@ class ApiService {
 
               return handler.resolve(cloneReq);
             } catch (_) {
-              await storage.deleteAll();
+              await _clearSessionStorage(clearBiometric: true);
               return handler.next(e);
             }
           }
@@ -124,18 +139,56 @@ class ApiService {
     return sha256.convert(bytes).toString();
   }
 
+  Future<void> _storeOfflineProfile(Map<String, dynamic> profile) async {
+    await storage.write(
+      key: _offlineUserProfileKey,
+      value: jsonEncode(profile),
+    );
+  }
+
+  Future<Map<String, dynamic>?> _getStoredOfflineProfile() async {
+    final rawProfile = await storage.read(key: _offlineUserProfileKey);
+    if (rawProfile == null || rawProfile.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(rawProfile);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (_) {
+      // Ignore malformed local profile payloads and fall back to network/cache.
+    }
+
+    return null;
+  }
+
+  Future<void> _clearSessionStorage({bool clearBiometric = false}) async {
+    await storage.delete(key: _accessTokenKey);
+    await storage.delete(key: _refreshTokenKey);
+    await storage.delete(key: _userRoleKey);
+    await storage.delete(key: _userIdKey);
+
+    if (clearBiometric) {
+      await storage.delete(key: _biometricEnabledKey);
+    }
+  }
+
   /// Persist offline-safe credentials
   Future<void> _storeOfflineCredentials(String email, String password) async {
     final hashed = await _hashPassword(password);
-    await storage.write(key: 'offline_login_email', value: email);
-    await storage.write(key: 'offline_login_password_hash', value: hashed);
+    await storage.write(
+      key: _offlineLoginEmailKey,
+      value: email.trim().toLowerCase(),
+    );
+    await storage.write(key: _offlineLoginPasswordHashKey, value: hashed);
   }
 
   /// Validate offline login credentials
   Future<bool> _validateOfflineCredentials(
       String email, String password) async {
-    final storedEmail = await storage.read(key: 'offline_login_email');
-    final storedHash = await storage.read(key: 'offline_login_password_hash');
+    final storedEmail = await storage.read(key: _offlineLoginEmailKey);
+    final storedHash =
+        await storage.read(key: _offlineLoginPasswordHashKey);
     if (storedEmail == null || storedHash == null) return false;
     if (storedEmail.toLowerCase() != email.trim().toLowerCase()) return false;
 
@@ -198,11 +251,7 @@ class ApiService {
       return response;
     } on DioException catch (e) {
       // Use offline queue when internet is unavailable
-      if (AppConfig.isOfflineModeEnabled &&
-          (e.type == DioExceptionType.connectionTimeout ||
-              e.type == DioExceptionType.receiveTimeout ||
-              e.type == DioExceptionType.sendTimeout ||
-              e.type == DioExceptionType.connectionError)) {
+      if (AppConfig.isOfflineModeEnabled && _isConnectionFailure(e)) {
         await _queueOfflineRequest(method: method, path: path, data: data);
         return Response(
           requestOptions: RequestOptions(path: path),
@@ -315,19 +364,18 @@ class ApiService {
 
       if (response.statusCode == 200) {
         if (response.data['access'] != null) {
-          await storage.write(
-              key: 'access_token', value: response.data['access']);
+          await storage.write(key: _accessTokenKey, value: response.data['access']);
         }
         if (response.data['refresh'] != null) {
           await storage.write(
-              key: 'refresh_token', value: response.data['refresh']);
+              key: _refreshTokenKey, value: response.data['refresh']);
         }
         if (response.data['role'] != null) {
-          await storage.write(key: 'user_role', value: response.data['role']);
+          await storage.write(key: _userRoleKey, value: response.data['role']);
         }
         if (response.data['user_id'] != null) {
           await storage.write(
-              key: 'user_id', value: response.data['user_id'].toString());
+              key: _userIdKey, value: response.data['user_id'].toString());
         }
 
         // Save offline credential for fallback login
@@ -339,40 +387,48 @@ class ApiService {
       return response;
     } on DioException catch (e) {
       // Offline login fallback when app is in offline mode and there is no network
-      if (AppConfig.isOfflineModeEnabled &&
-          (e.type == DioExceptionType.connectionTimeout ||
-              e.type == DioExceptionType.receiveTimeout ||
-              e.type == DioExceptionType.sendTimeout ||
-              e.type == DioExceptionType.connectionError)) {
+      if (AppConfig.isOfflineModeEnabled && _isConnectionFailure(e)) {
         final verified = await _validateOfflineCredentials(email, password);
         if (verified) {
           // Keep existing tokens if present, but permit use of cached offline data
           return Response(
             requestOptions: RequestOptions(path: 'accounts/login/'),
             statusCode: 200,
-            data: {'detail': 'Offline login succeeded'},
+            data: {
+              'detail': 'Offline login succeeded',
+              'offline_login': true,
+            },
           );
         } else {
           // Offline credentials not found or invalid
+          final deviceOnline = await isOnline;
           throw DioException(
             requestOptions: RequestOptions(path: 'accounts/login/'),
             error:
-                'Unable to login offline. Please check your credentials and try again when online.',
+                deviceOnline
+                    ? 'You are connected to the internet, but the SeedVest '
+                        'server is not responding right now. We also could '
+                        'not verify a saved offline login for this account on '
+                        'this device. Please try again shortly.'
+                    : 'Unable to login offline. Please check your credentials '
+                        'and try again when online.',
             type: DioExceptionType.unknown,
           );
         }
       }
 
       // Handle network errors when offline mode is disabled
-      if (!AppConfig.isOfflineModeEnabled &&
-          (e.type == DioExceptionType.connectionTimeout ||
-              e.type == DioExceptionType.receiveTimeout ||
-              e.type == DioExceptionType.sendTimeout ||
-              e.type == DioExceptionType.connectionError)) {
+      if (!AppConfig.isOfflineModeEnabled && _isConnectionFailure(e)) {
+        final deviceOnline = await isOnline;
         throw DioException(
           requestOptions: RequestOptions(path: 'accounts/login/'),
           error:
-              'No internet connection available. Please check your connection and try again.',
+              deviceOnline
+                  ? 'You are connected to the internet, but the SeedVest '
+                      'server is not responding right now. Please try again '
+                      'in a few minutes.'
+                  : 'No internet connection available. Please check your '
+                      'connection and try again.',
           type: DioExceptionType.connectionError,
         );
       }
@@ -396,12 +452,12 @@ class ApiService {
   }
 
   Future<bool> hasRefreshToken() async {
-    final refreshToken = await storage.read(key: 'refresh_token');
+    final refreshToken = await storage.read(key: _refreshTokenKey);
     return refreshToken != null && refreshToken.isNotEmpty;
   }
 
   Future<bool> refreshAccessToken() async {
-    final refreshToken = await storage.read(key: 'refresh_token');
+    final refreshToken = await storage.read(key: _refreshTokenKey);
     if (refreshToken == null || refreshToken.isEmpty) return false;
 
     try {
@@ -410,8 +466,7 @@ class ApiService {
       });
 
       if (response.statusCode == 200 && response.data['access'] != null) {
-        await storage.write(
-            key: 'access_token', value: response.data['access']);
+        await storage.write(key: _accessTokenKey, value: response.data['access']);
         return true;
       }
       return false;
@@ -421,7 +476,7 @@ class ApiService {
   }
 
   Future<Response> clearSessionAndBiometric() async {
-    await storage.deleteAll();
+    await _clearSessionStorage(clearBiometric: true);
     await _cacheService.clearCache();
     return Response(
       requestOptions: RequestOptions(path: ''),
@@ -430,8 +485,28 @@ class ApiService {
   }
 
   Future<Response> getProfile() async {
-    return await _getWithCache('accounts/users/me/',
-        customCacheKey: 'user_profile');
+    try {
+      final response = await _getWithCache('accounts/users/me/',
+          customCacheKey: 'user_profile');
+      if (response.statusCode == 200 && response.data is Map) {
+        await _storeOfflineProfile(
+          Map<String, dynamic>.from(response.data as Map),
+        );
+      }
+      return response;
+    } on DioException catch (e) {
+      if (AppConfig.isOfflineModeEnabled && _isConnectionFailure(e)) {
+        final storedProfile = await _getStoredOfflineProfile();
+        if (storedProfile != null) {
+          return Response(
+            data: storedProfile,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: 'accounts/users/me/'),
+          );
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<Response> getNotifications() async {
@@ -473,14 +548,14 @@ class ApiService {
   Future<Response> logout() async {
     try {
       await _ensureOnline();
-      final refreshToken = await storage.read(key: 'refresh_token');
+      final refreshToken = await storage.read(key: _refreshTokenKey);
       if (refreshToken != null) {
         await dio.post('accounts/logout/', data: {'refresh': refreshToken});
       }
     } catch (_) {
       // Ignore logout errors
     } finally {
-      await storage.deleteAll();
+      await _clearSessionStorage(clearBiometric: true);
       await _cacheService.clearCache();
     }
     return Response(
@@ -571,9 +646,34 @@ class ApiService {
     return await dio.get('payments/mpesa/status/$checkoutRequestId/');
   }
 
-  Future<Response> getContributions() async {
-    return await _getWithCache('finance/contributions/',
-        customCacheKey: 'contributions');
+  Future<Response> getContributions({
+    int? userId,
+    int? groupId,
+    int? cycleId,
+    String? status,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    String? ordering,
+  }) async {
+    final queryParameters = <String, dynamic>{
+      if (userId != null) 'user_id': userId,
+      if (groupId != null) 'group_id': groupId,
+      if (cycleId != null) 'cycle_id': cycleId,
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (dateFrom != null) 'date_from': dateFrom.toIso8601String().split('T')[0],
+      if (dateTo != null) 'date_to': dateTo.toIso8601String().split('T')[0],
+      if (ordering != null && ordering.isNotEmpty) 'ordering': ordering,
+    };
+    final hasFilters = queryParameters.isNotEmpty;
+    final cacheKey = hasFilters
+        ? 'contributions:${queryParameters.entries.map((e) => '${e.key}=${e.value}').join('&')}'
+        : 'contributions';
+
+    return await _getWithCache(
+      'finance/contributions/',
+      customCacheKey: cacheKey,
+      queryParameters: hasFilters ? queryParameters : null,
+    );
   }
 
   Future<Response> proposeManualContribution(
