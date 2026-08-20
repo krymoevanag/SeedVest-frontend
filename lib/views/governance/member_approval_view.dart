@@ -388,13 +388,17 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                           }
 
                           if (context.mounted) {
+                            final message = success
+                                ? vm.lastApprovalMessage ??
+                                    '${user.fullName} approved! They can now log in using their registered password.'
+                                : 'Failed to approve member. Check logs.';
                             messenger.showSnackBar(
                               SnackBar(
-                                content: Text(success
-                                    ? '${user.fullName} approved! They can now log in using their registered password.'
-                                    : 'Failed to approve member. Check logs.'),
+                                content: Text(message),
                                 backgroundColor: success
-                                    ? AppColors.success
+                                    ? vm.lastApprovalEmailSent == false
+                                        ? Colors.orange
+                                        : AppColors.success
                                     : AppColors.error,
                                 duration: const Duration(seconds: 4),
                               ),

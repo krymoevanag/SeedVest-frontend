@@ -16,6 +16,10 @@ class GovernanceViewModel extends ChangeNotifier {
 
   List<User> _approvedUsers = [];
   List<User> get approvedUsers => _approvedUsers;
+  String? _lastApprovalMessage;
+  String? get lastApprovalMessage => _lastApprovalMessage;
+  bool? _lastApprovalEmailSent;
+  bool? get lastApprovalEmailSent => _lastApprovalEmailSent;
 
   List<Investment> _investments = [];
   List<Investment> get investments => _investments;
@@ -46,9 +50,17 @@ class GovernanceViewModel extends ChangeNotifier {
 
   Future<bool> approveUser(int userId, {int? groupId, String? role}) async {
     _setLoading(true);
+    _lastApprovalMessage = null;
+    _lastApprovalEmailSent = null;
     try {
       final response = await _apiService.approveUser(userId);
       if (response.statusCode == 200 || response.statusCode == 204) {
+        if (response.data is Map) {
+          final responseData = response.data as Map;
+          _lastApprovalMessage = responseData['message']?.toString();
+          final emailSent = responseData['email_sent'];
+          _lastApprovalEmailSent = emailSent is bool ? emailSent : null;
+        }
         if (groupId != null) {
           debugPrint('Assigning user $userId to group $groupId after approval...');
           try {

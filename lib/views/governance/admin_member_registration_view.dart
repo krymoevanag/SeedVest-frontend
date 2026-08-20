@@ -56,12 +56,13 @@ class _AdminMemberRegistrationViewState
         final credentials = result['credentials'];
 
         if (hasEmail) {
+          final bool emailSent = result['email_sent'] != false;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 result['message'] ?? 'Member registered! Account setup email sent.',
               ),
-              backgroundColor: AppColors.success,
+              backgroundColor: emailSent ? AppColors.success : Colors.orange,
               duration: const Duration(seconds: 4),
             ),
           );

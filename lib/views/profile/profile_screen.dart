@@ -21,6 +21,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _firstNameController;
   late TextEditingController _lastNameController;
   late TextEditingController _phoneController;
+  late TextEditingController _emailController;
   bool _isEditing = false;
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
@@ -55,6 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _firstNameController = TextEditingController(text: first);
     _lastNameController = TextEditingController(text: last);
     _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
     _loadBiometricSettings();
   }
 
@@ -63,6 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -402,6 +405,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _lastNameController.text =
                       names.length > 1 ? names.sublist(1).join(' ') : '';
                   _phoneController.text = user?.phoneNumber ?? '';
+                  _emailController.text = user?.email ?? '';
                 }
                 _isEditing = !_isEditing;
               });
@@ -515,8 +519,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        _buildReadOnlyField(
-                            'Email', user?.email ?? '', Icons.email_outlined),
+                        _buildTextField(
+                          label: 'Email Address',
+                          controller: _emailController,
+                          enabled: _isEditing,
+                          icon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            final email = value?.trim() ?? '';
+                            if (email.isEmpty) return null;
+
+                            final emailPattern = RegExp(
+                              r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                            );
+                            if (!emailPattern.hasMatch(email)) {
+                              return 'Please enter a valid email address';
+                            }
+                            return null;
+                          },
+                        ),
                         const Divider(),
                         _buildReadOnlyField(
                             'Membership No.',
@@ -611,6 +632,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       'first_name': _firstNameController.text,
                       'last_name': _lastNameController.text,
                       'phone_number': _phoneController.text,
+                      if (_emailController.text.trim().isNotEmpty)
+                        'email': _emailController.text.trim(),
                     });
 
                     if (!context.mounted) return;
@@ -731,6 +754,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required bool enabled,
     required IconData icon,
     TextInputType? keyboardType,
+    String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
@@ -743,12 +767,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         contentPadding: enabled ? null : const EdgeInsets.all(0),
         filled: enabled,
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter $label';
-        }
-        return null;
-      },
+      validator: validator ??
+          (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter $label';
+            }
+            return null;
+          },
     );
   }
 

@@ -387,7 +387,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 : '';
 
                             // Attempt registration
-                            await _apiService.register({
+                            final response = await _apiService.register({
                               'first_name': firstName,
                               'last_name': lastName,
                               'email': _emailController.text,
@@ -400,11 +400,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             });
 
                             if (!mounted) return;
+                            final responseData = response.data;
+                            final emailSent = responseData is Map
+                                ? responseData['email_sent'] != false
+                                : true;
+                            final message = responseData is Map &&
+                                    responseData['message'] != null
+                                ? responseData['message'].toString()
+                                : emailSent
+                                    ? 'Registration successful! Check your email to activate your account, then await admin approval.'
+                                    : 'Registration submitted, but the activation email could not be delivered. Please contact support.';
                             messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Registration successful! Awaiting admin approval.'),
-                                backgroundColor: Colors.green,
+                              SnackBar(
+                                content: Text(message),
+                                backgroundColor:
+                                    emailSent ? Colors.green : Colors.orange,
                               ),
                             );
                             Navigator.pushReplacementNamed(
