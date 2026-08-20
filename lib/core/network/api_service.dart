@@ -9,6 +9,11 @@ import '../cache/cache_service.dart';
 import 'connectivity_service.dart';
 
 class ApiService {
+  // A free Render service may need time to wake before it can return its first
+  // response. Keep the request open long enough for that cold start instead of
+  // treating a healthy deployed API as unavailable after 30 seconds.
+  static const Duration _connectTimeout = Duration(seconds: 60);
+  static const Duration _receiveTimeout = Duration(seconds: 90);
   static const String _biometricEnabledKey = 'biometric_enabled';
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
@@ -55,8 +60,8 @@ class ApiService {
 
   ApiService() {
     dio.options.baseUrl = AppConfig.apiUrl;
-    dio.options.connectTimeout = const Duration(seconds: 30);
-    dio.options.receiveTimeout = const Duration(seconds: 30);
+    dio.options.connectTimeout = _connectTimeout;
+    dio.options.receiveTimeout = _receiveTimeout;
 
     // Keep connectivity listener active for background sync of offline writes
     _connectivityService.init();
