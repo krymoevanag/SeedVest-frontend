@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/governance_viewmodel.dart';
 import '../../core/theme/colors.dart';
@@ -41,7 +42,7 @@ class _AdminMemberRegistrationViewState
     if (!_formKey.currentState!.validate()) return;
 
     final viewModel = context.read<GovernanceViewModel>();
-    final success = await viewModel.registerMember(
+    final result = await viewModel.registerMember(
       fullName: _nameController.text.trim(),
       email: _emailController.text.trim(),
       phoneNumber: _phoneController.text.trim(),
@@ -50,24 +51,123 @@ class _AdminMemberRegistrationViewState
     );
 
     if (mounted) {
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Member registered successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        Navigator.pop(context);
+      if (result != null) {
+        final bool hasEmail = result['has_email'] ?? false;
+        final credentials = result['credentials'];
+
+        if (hasEmail) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result['message'] ?? 'Member registered! Account setup email sent.',
+              ),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          Navigator.pop(context);
+        } else if (credentials != null && credentials is Map<String, dynamic>) {
+          _showCredentialsDialog(credentials);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Member registered successfully.'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          Navigator.pop(context);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content:
-                Text('Failed to register member. Email may already exist.'),
+            content: Text('Failed to register member. Email or phone number may already exist.'),
             backgroundColor: AppColors.error,
           ),
         );
       }
     }
+  }
+
+  void _showCredentialsDialog(Map<String, dynamic> creds) {
+    final String name = creds['name'] ?? 'Member';
+    final String membershipNo = creds['membership_number'] ?? '';
+    final String phone = creds['phone_number'] ?? '';
+    final String password = creds['initial_password'] ?? '';
+
+    final String formattedText = '''
+SeedVest Member Credentials
+Name: $name
+Membership No: $membershipNo
+Login ID (Phone): $phone
+Initial Password: $password
+''';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Member Credentials'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Member registered successfully! Since no email was provided, please copy and share these login credentials with the member:',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Member Name: $name', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('Membership No: $membershipNo'),
+                  const SizedBox(height: 4),
+                  Text('Login ID (Phone): $phone'),
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    'Initial Password: $password',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton.icon(
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('COPY CREDENTIALS'),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: formattedText));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Credentials copied to clipboard!')),
+              );
+            },
+          ),
+          TextButton(
+            child: const Text('CLOSE'),
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Exit registration screen
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -102,11 +202,11 @@ class _AdminMemberRegistrationViewState
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  labelText: 'Email Address',
+                  labelText: 'Email Address (Optional)',
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
                 validator: (val) {
-                  if (val == null || val.isEmpty) return 'Email is required';
+                  if (val == null || val.trim().isEmpty) return null;
                   if (!val.contains('@')) return 'Invalid email address';
                   return null;
                 },

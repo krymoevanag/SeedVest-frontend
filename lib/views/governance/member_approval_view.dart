@@ -391,11 +391,12 @@ class _MemberApprovalViewState extends State<MemberApprovalView> {
                             messenger.showSnackBar(
                               SnackBar(
                                 content: Text(success
-                                    ? '${user.fullName} approved and assigned.'
+                                    ? '${user.fullName} approved! They can now log in using their registered password.'
                                     : 'Failed to approve member. Check logs.'),
                                 backgroundColor: success
                                     ? AppColors.success
                                     : AppColors.error,
+                                duration: const Duration(seconds: 4),
                               ),
                             );
                           }

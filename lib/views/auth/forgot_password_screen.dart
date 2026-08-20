@@ -119,7 +119,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               children: [
                 const SizedBox(height: 12),
                 Text(
-                  "Enter your email and we'll send password reset instructions.",
+                  "Enter your registered Email, Phone Number, or Membership Number to request password reset instructions.",
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: AppColors.textSecondary,
                         height: 1.5,
@@ -128,10 +128,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 48),
                 TextFormField(
                   controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
+                  keyboardType: TextInputType.text,
                   decoration: InputDecoration(
-                    labelText: 'Email Address',
-                    prefixIcon: const Icon(Icons.email_outlined),
+                    labelText: 'Email, Phone, or Membership Number',
+                    prefixIcon: const Icon(Icons.person_outline),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -139,11 +139,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     fillColor: Colors.grey[50],
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Enter a valid email';
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your Email, Phone, or Membership Number';
                     }
                     return null;
                   },

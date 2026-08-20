@@ -188,7 +188,7 @@ class GovernanceViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> registerMember({
+  Future<Map<String, dynamic>?> registerMember({
     required String fullName,
     required String email,
     required String phoneNumber,
@@ -197,14 +197,17 @@ class GovernanceViewModel extends ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
-      final names = fullName.split(' ');
+      final names = fullName.trim().split(RegExp(r'\s+'));
       final Map<String, dynamic> payload = {
-        'email': email,
         'first_name': names.first,
         'last_name': names.length > 1 ? names.sublist(1).join(' ') : '',
         'phone_number': phoneNumber,
         'role': role,
       };
+
+      if (email.trim().isNotEmpty) {
+        payload['email'] = email.trim();
+      }
 
       if (groupId != null) {
         payload['group_ids'] = [groupId];
@@ -214,12 +217,15 @@ class GovernanceViewModel extends ChangeNotifier {
 
       if (response.statusCode == 201) {
         await fetchApprovedUsers(); // Refresh the list
-        return true;
+        if (response.data is Map<String, dynamic>) {
+          return response.data as Map<String, dynamic>;
+        }
+        return {'success': true};
       }
-      return false;
+      return null;
     } catch (e) {
       debugPrint('Error registering member: $e');
-      return false;
+      return null;
     } finally {
       _setLoading(false);
     }
