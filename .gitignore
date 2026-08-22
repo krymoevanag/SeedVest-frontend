@@ -37,6 +37,7 @@ migrate_working_dir/
 .env
 android/key.properties
 android/app/google-services.json
+**/*firebase-adminsdk*.json
 android/keystore/*.jks
 android/keystore/*.keystore
 
