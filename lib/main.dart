@@ -4,10 +4,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'core/theme/app_theme.dart';
 import 'core/cache/cache_service.dart';
 import 'core/services/inactivity_service.dart';
+import 'core/services/push_notification_service.dart';
 import 'core/theme/colors.dart';
 import 'views/auth/splash_screen.dart';
 import 'views/auth/onboarding_screen.dart';
@@ -56,6 +58,8 @@ void main() async {
   // Request Notification Permissions
   await _requestPermissions();
 
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
   runApp(
     MultiProvider(
       providers: [
@@ -95,6 +99,32 @@ class _SeedVestAppState extends State<SeedVestApp> {
     super.initState();
     _initDeepLinks();
     _setupInactivity();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushNotificationService.instance.initialize(
+        onForegroundMessage: _handleForegroundPush,
+        onNotificationTap: _handlePushNotificationTap,
+      );
+    });
+  }
+
+  void _handleForegroundPush(RemoteMessage message) {
+    final context = _navigatorKey.currentContext;
+    if (context == null) return;
+    context.read<NotificationViewModel>().refreshNotificationsState();
+  }
+
+  void _handlePushNotificationTap(String? link) {
+    final route = _routeForNotificationLink(link);
+    _navigatorKey.currentState?.pushNamed(route);
+  }
+
+  String _routeForNotificationLink(String? link) {
+    if (link == '/dashboard') return '/dashboard';
+    if (link != null && link.startsWith('/finance/penalties')) return '/penalties';
+    if (link == '/governance/contributions') return '/governance/contributions';
+    if (link == '/governance/approvals') return '/governance/approvals';
+    if (link == '/governance/investments') return '/governance/investments';
+    return '/notifications';
   }
 
   void _setupInactivity() {
@@ -258,6 +288,7 @@ class _SeedVestAppState extends State<SeedVestApp> {
   @override
   void dispose() {
     _sub?.cancel();
+    PushNotificationService.instance.dispose();
     super.dispose();
   }
 

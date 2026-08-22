@@ -24,10 +24,12 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   app_links: ^6.1.1
-  permission_handler: ^11.4.0
+  permission_handler: ^13.0.1
   image_picker: ^1.1.2
-  local_auth: ^2.3.0
+  local_auth: ^3.0.1
   url_launcher: ^6.3.1
+  firebase_core: ^4.13.0
+  firebase_messaging: ^16.5.0
 
 dev_dependencies:
   flutter_test:
@@ -41,7 +43,7 @@ dev_dependencies:
 
   # Hive code generation
   hive_generator: ^2.0.1
-  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
   android: "launcher_icon"

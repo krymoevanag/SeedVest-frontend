@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../core/network/api_service.dart';
+import '../core/services/push_notification_service.dart';
 import '../data/models/user.dart';
 import '../core/services/inactivity_service.dart';
 
@@ -19,6 +20,7 @@ class UserViewModel extends ChangeNotifier {
       final response = await _apiService.getProfile();
       if (response.statusCode == 200) {
         _currentUser = User.fromJson(response.data);
+        await PushNotificationService.instance.registerCurrentDevice();
         // Start inactivity service once profile is successfully loaded
         InactivityService.instance.start();
       }

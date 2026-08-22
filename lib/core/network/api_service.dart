@@ -518,6 +518,24 @@ class ApiService {
     return await _getWithCache('notifications/');
   }
 
+  Future<Response> getUnreadNotificationCount() async {
+    return await _getWithCache('notifications/unread-count/');
+  }
+
+  Future<Response> registerDeviceToken({
+    required String deviceToken,
+    required String platform,
+  }) async {
+    await _ensureOnline();
+    return await dio.post(
+      'notifications/devices/',
+      data: {
+        'device_token': deviceToken,
+        'platform': platform,
+      },
+    );
+  }
+
   Future<Response> getNotificationPreferences() async {
     return await _getWithCache('notifications/preferences/');
   }

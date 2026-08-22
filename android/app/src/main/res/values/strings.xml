@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="default_notification_channel_id">seedvest_notifications</string>
+    <string name="default_notification_channel_name">SeedVest alerts</string>
+    <string name="default_notification_channel_description">Important SeedVest account and finance updates.</string>
+</resources>
