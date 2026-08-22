@@ -31,7 +31,18 @@ A premium micro-investment and savings management application built with Flutter
    ```bash
    flutter pub get
    ```
-4. **Run the App**:
+4. **Configure Firebase API keys**:
+   Firebase client API keys are supplied at build time and are not stored in
+   the repository. Read them from the Firebase project settings, restrict
+   them to the required apps and APIs, then pass the matching key for the
+   platform being built:
+   ```bash
+   flutter run \
+     --dart-define=FIREBASE_ANDROID_API_KEY=your-android-api-key
+   ```
+   Use `FIREBASE_WEB_API_KEY`, `FIREBASE_IOS_API_KEY`,
+   `FIREBASE_MACOS_API_KEY`, or `FIREBASE_WINDOWS_API_KEY` for those targets.
+5. **Run the App**:
    ```bash
    flutter run
    ```
