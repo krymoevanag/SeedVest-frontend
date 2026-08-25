@@ -81,6 +81,12 @@ class _LoansOverviewViewState extends State<LoansOverviewView> {
                       prompt: 'Approve this loan application?',
                       action: () => loansViewModel.approveLoan(loan.id),
                     ),
+                    onReject: () => _performReasonAction(
+                      title: 'Reject loan',
+                      prompt: 'Why is this loan application being rejected?',
+                      action: (reason) =>
+                          loansViewModel.rejectLoan(loan.id, reason),
+                    ),
                     onDisburse: () => _performAction(
                       title: 'Disburse loan',
                       prompt: 'Record this loan as disbursed?',
@@ -93,6 +99,12 @@ class _LoansOverviewViewState extends State<LoansOverviewView> {
                           'Verify KES ${_money(repayment.amount)} from ${repayment.userName}?',
                       action: () =>
                           loansViewModel.verifyRepayment(loan.id, repayment.id),
+                    ),
+                    onRejectRepayment: (repayment) => _performReasonAction(
+                      title: 'Reject repayment',
+                      prompt: 'Why is this repayment being rejected?',
+                      action: (reason) => loansViewModel.rejectRepayment(
+                          loan.id, repayment.id, reason),
                     ),
                   ),
                 ),
@@ -512,6 +524,47 @@ class _LoansOverviewViewState extends State<LoansOverviewView> {
       ),
     );
   }
+
+  Future<void> _performReasonAction({
+    required String title,
+    required String prompt,
+    required Future<bool> Function(String reason) action,
+  }) async {
+    final reasonController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: reasonController,
+          maxLines: 3,
+          decoration: InputDecoration(labelText: prompt),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      reasonController.dispose();
+      return;
+    }
+    final loanViewModel = context.read<LoanViewModel>();
+    final success = await action(reasonController.text.trim());
+    reasonController.dispose();
+    if (!mounted) return;
+    _showMessage(
+      success ? '$title completed.' : (loanViewModel.error ?? '$title failed.'),
+      success: success,
+    );
+  }
 }
 
 class _LoanCard extends StatelessWidget {
@@ -522,9 +575,11 @@ class _LoanCard extends StatelessWidget {
     required this.onAcceptGuarantee,
     required this.onRejectGuarantee,
     required this.onApprove,
+    required this.onReject,
     required this.onDisburse,
     required this.onRepay,
     required this.onVerifyRepayment,
+    required this.onRejectRepayment,
   });
 
   final Loan loan;
@@ -533,9 +588,11 @@ class _LoanCard extends StatelessWidget {
   final VoidCallback onAcceptGuarantee;
   final VoidCallback onRejectGuarantee;
   final VoidCallback onApprove;
+  final VoidCallback onReject;
   final VoidCallback onDisburse;
   final VoidCallback onRepay;
   final ValueChanged<LoanRepayment> onVerifyRepayment;
+  final ValueChanged<LoanRepayment> onRejectRepayment;
 
   @override
   Widget build(BuildContext context) {
@@ -618,9 +675,17 @@ class _LoanCard extends StatelessWidget {
                       ),
                     ),
                     if (canManage && repayment.status == 'PENDING')
-                      TextButton(
-                        onPressed: () => onVerifyRepayment(repayment),
-                        child: const Text('Verify'),
+                      Wrap(
+                        children: [
+                          TextButton(
+                            onPressed: () => onRejectRepayment(repayment),
+                            child: const Text('Reject'),
+                          ),
+                          TextButton(
+                            onPressed: () => onVerifyRepayment(repayment),
+                            child: const Text('Verify'),
+                          ),
+                        ],
                       ),
                   ],
                 ),
@@ -648,10 +713,20 @@ class _LoanCard extends StatelessWidget {
                 ],
               ),
             if (canManage && loan.status == 'PENDING_APPROVAL')
-              FilledButton.icon(
-                onPressed: onApprove,
-                icon: const Icon(Icons.verified_outlined),
-                label: const Text('Approve loan'),
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onReject,
+                    icon: const Icon(Icons.close),
+                    label: const Text('Reject loan'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: onApprove,
+                    icon: const Icon(Icons.verified_outlined),
+                    label: const Text('Approve loan'),
+                  ),
+                ],
               ),
             if (canManage && loan.status == 'APPROVED')
               FilledButton.icon(

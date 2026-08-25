@@ -1034,7 +1034,6 @@ class ApiService {
         });
   }
 
-
   Future<Response> getMemberFinancialProfile(int memberId) async {
     return await _getWithCache('finance/members/$memberId/financial-profile/');
   }
@@ -1084,6 +1083,7 @@ class ApiService {
       queryParameters: {if (groupId != null) 'group_id': groupId},
     );
   }
+
   Future<Response> getAutoSaveHistory() async {
     return await _getWithCache('finance/auto-save-history/');
   }
@@ -1185,6 +1185,23 @@ class ApiService {
     return await dio.post(
       'finance/loans/$loanId/verify-repayment/',
       data: {'repayment_id': repaymentId},
+    );
+  }
+
+  Future<Response> rejectLoan(int loanId, String reason) async {
+    await _ensureOnline();
+    return await dio.post(
+      'finance/loans/$loanId/reject/',
+      data: {'reason': reason},
+    );
+  }
+
+  Future<Response> rejectLoanRepayment(
+      int loanId, int repaymentId, String reason) async {
+    await _ensureOnline();
+    return await dio.post(
+      'finance/loans/$loanId/reject-repayment/',
+      data: {'repayment_id': repaymentId, 'reason': reason},
     );
   }
 

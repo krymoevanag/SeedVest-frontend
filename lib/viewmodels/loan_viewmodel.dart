@@ -111,6 +111,10 @@ class LoanViewModel extends ChangeNotifier {
     return await _submit(() => _apiService.approveLoan(loanId));
   }
 
+  Future<bool> rejectLoan(int loanId, String reason) async {
+    return await _submit(() => _apiService.rejectLoan(loanId, reason));
+  }
+
   Future<bool> disburseLoan(int loanId) async {
     return await _submit(() => _apiService.disburseLoan(loanId));
   }
@@ -133,6 +137,12 @@ class LoanViewModel extends ChangeNotifier {
   Future<bool> verifyRepayment(int loanId, int repaymentId) async {
     return await _submit(
         () => _apiService.verifyLoanRepayment(loanId, repaymentId));
+  }
+
+  Future<bool> rejectRepayment(
+      int loanId, int repaymentId, String reason) async {
+    return await _submit(
+        () => _apiService.rejectLoanRepayment(loanId, repaymentId, reason));
   }
 
   double calculateTotalPayable({
