@@ -29,7 +29,8 @@ class _MemberFinancialProfileViewState
   }
 
   Future<void> _loadProfile() async {
-    final memberId = widget.memberId ?? context.read<UserViewModel>().currentUser?.id;
+    final memberId =
+        widget.memberId ?? context.read<UserViewModel>().currentUser?.id;
     if (memberId == null) {
       setState(() {
         _isLoading = false;
@@ -90,17 +91,25 @@ class _MemberFinancialProfileViewState
                         physics: const NeverScrollableScrollPhysics(),
                         childAspectRatio: 1.55,
                         children: [
-                          _MetricCard('Savings', _money('total_savings'), Colors.green),
-                          _MetricCard('Penalties', _money('total_penalties'), Colors.orange),
-                          _MetricCard('Investments', _money('total_investments'), Colors.blue),
-                          _MetricCard('Outstanding', _money('outstanding_balance'), Colors.red),
+                          _MetricCard(
+                              'Savings', _money('total_savings'), Colors.green),
+                          _MetricCard('Penalties', _money('total_penalties'),
+                              Colors.orange),
+                          _MetricCard('Investments',
+                              _money('total_investments'), Colors.blue),
+                          _MetricCard('Outstanding',
+                              _money('outstanding_balance'), Colors.red),
                         ],
                       ),
                       const SizedBox(height: 20),
-                      _DetailRow('Total contributions', _money('total_contributions')),
-                      _DetailRow('Verified repayments', _money('total_repayments')),
-                      _DetailRow('Active loans', '${_profile?['active_loans'] ?? 0}'),
-                      _DetailRow('Overdue loans', '${_profile?['overdue_loans'] ?? 0}'),
+                      _DetailRow(
+                          'Total contributions', _money('total_contributions')),
+                      _DetailRow(
+                          'Verified repayments', _money('total_repayments')),
+                      _DetailRow(
+                          'Active loans', '${_profile?['active_loans'] ?? 0}'),
+                      _DetailRow('Overdue loans',
+                          '${_profile?['overdue_loans'] ?? 0}'),
                       _DetailRow('Overdue balance', _money('overdue_balance')),
                       _DetailRow('Net position', _money('net_position')),
                     ],
@@ -148,7 +157,8 @@ class _DetailRow extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(label),
-      trailing: Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+      trailing:
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
     );
   }
 }

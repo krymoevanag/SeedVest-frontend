@@ -27,7 +27,8 @@ class _SavingsHistoryViewState extends State<SavingsHistoryView> {
   }
 
   Future<void> _loadHistory() async {
-    final memberId = widget.memberId ?? context.read<UserViewModel>().currentUser?.id;
+    final memberId =
+        widget.memberId ?? context.read<UserViewModel>().currentUser?.id;
     if (memberId == null) {
       setState(() {
         _isLoading = false;
@@ -46,7 +47,8 @@ class _SavingsHistoryViewState extends State<SavingsHistoryView> {
       );
       if (!mounted) return;
       final data = response.data is List ? response.data as List : const [];
-      setState(() => _entries = data.map((entry) => Map<String, dynamic>.from(entry)).toList());
+      setState(() => _entries =
+          data.map((entry) => Map<String, dynamic>.from(entry)).toList());
     } catch (_) {
       if (mounted) setState(() => _error = 'Unable to load savings history.');
     } finally {
@@ -69,13 +71,20 @@ class _SavingsHistoryViewState extends State<SavingsHistoryView> {
                     children: [
                       DropdownButtonFormField<String>(
                         initialValue: _filter,
-                        decoration: const InputDecoration(labelText: 'Filter by type'),
+                        decoration:
+                            const InputDecoration(labelText: 'Filter by type'),
                         items: const [
-                          DropdownMenuItem(value: '', child: Text('All activity')),
-                          DropdownMenuItem(value: 'contribution', child: Text('Contributions')),
-                          DropdownMenuItem(value: 'penalty', child: Text('Penalties')),
-                          DropdownMenuItem(value: 'investment', child: Text('Investments')),
-                          DropdownMenuItem(value: 'repayment', child: Text('Repayments')),
+                          DropdownMenuItem(
+                              value: '', child: Text('All activity')),
+                          DropdownMenuItem(
+                              value: 'contribution',
+                              child: Text('Contributions')),
+                          DropdownMenuItem(
+                              value: 'penalty', child: Text('Penalties')),
+                          DropdownMenuItem(
+                              value: 'investment', child: Text('Investments')),
+                          DropdownMenuItem(
+                              value: 'repayment', child: Text('Repayments')),
                         ],
                         onChanged: (value) {
                           setState(() => _filter = value ?? '');
@@ -86,7 +95,8 @@ class _SavingsHistoryViewState extends State<SavingsHistoryView> {
                       if (_entries.isEmpty)
                         const Padding(
                           padding: EdgeInsets.all(32),
-                          child: Center(child: Text('No financial activity found.')),
+                          child: Center(
+                              child: Text('No financial activity found.')),
                         )
                       else
                         ..._entries.map(_entryTile),

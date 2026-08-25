@@ -348,8 +348,7 @@ class _SeedVestAppState extends State<SeedVestApp> {
         '/finance/loans': (context) => const LoansOverviewView(),
         '/finance/profile': (context) => const MemberFinancialProfileView(),
         '/finance/history': (context) => const SavingsHistoryView(),
-        '/finance/loan-dashboard': (context) =>
-          const AdminLoanDashboardView(),
+        '/finance/loan-dashboard': (context) => const AdminLoanDashboardView(),
         '/help': (context) => const HelpScreen(),
         '/terms': (context) => const TermsConditionsScreen(),
         '/about': (context) => const AboutUsScreen(),

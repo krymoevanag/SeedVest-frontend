@@ -41,7 +41,8 @@ class _AdminLoanDashboardViewState extends State<AdminLoanDashboardView> {
         _loans = data.map((loan) => Map<String, dynamic>.from(loan)).toList();
       });
     } catch (_) {
-      if (mounted) setState(() => _error = 'Unable to load the loan dashboard.');
+      if (mounted)
+        setState(() => _error = 'Unable to load the loan dashboard.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -81,11 +82,20 @@ class _AdminLoanDashboardViewState extends State<AdminLoanDashboardView> {
                         physics: const NeverScrollableScrollPhysics(),
                         childAspectRatio: 1.6,
                         children: [
-                          _Metric('Active loans', '${_metrics['total_active_loans'] ?? 0}', Colors.blue),
-                          _Metric('Due this week', '${_metrics['loans_due_this_week'] ?? 0}', Colors.orange),
-                          _Metric('Disbursed', _money('total_disbursed'), Colors.green),
-                          _Metric('Outstanding', _money('total_outstanding'), Colors.red),
-                          _Metric('Overdue', _money('total_overdue'), Colors.deepOrange),
+                          _Metric(
+                              'Active loans',
+                              '${_metrics['total_active_loans'] ?? 0}',
+                              Colors.blue),
+                          _Metric(
+                              'Due this week',
+                              '${_metrics['loans_due_this_week'] ?? 0}',
+                              Colors.orange),
+                          _Metric('Disbursed', _money('total_disbursed'),
+                              Colors.green),
+                          _Metric('Outstanding', _money('total_outstanding'),
+                              Colors.red),
+                          _Metric('Overdue', _money('total_overdue'),
+                              Colors.deepOrange),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -100,11 +110,14 @@ class _AdminLoanDashboardViewState extends State<AdminLoanDashboardView> {
                         ..._loans.map(
                           (loan) => Card(
                             child: ListTile(
-                              title: Text(loan['borrower_name']?.toString() ?? 'Loan #${loan['id']}'),
-                              subtitle: Text('${loan['status'] ?? ''} | Due ${loan['due_date'] ?? 'N/A'}'),
+                              title: Text(loan['borrower_name']?.toString() ??
+                                  'Loan #${loan['id']}'),
+                              subtitle: Text(
+                                  '${loan['status'] ?? ''} | Due ${loan['due_date'] ?? 'N/A'}'),
                               trailing: Text(
                                 'KES ${((loan['balance_remaining'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}',
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
                               ),
                             ),
                           ),
@@ -134,7 +147,8 @@ class _Metric extends StatelessWidget {
           children: [
             Text(label, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 6),
-            Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+            Text(value,
+                style: TextStyle(color: color, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
