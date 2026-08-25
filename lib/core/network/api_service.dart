@@ -192,8 +192,7 @@ class ApiService {
   Future<bool> _validateOfflineCredentials(
       String email, String password) async {
     final storedEmail = await storage.read(key: _offlineLoginEmailKey);
-    final storedHash =
-        await storage.read(key: _offlineLoginPasswordHashKey);
+    final storedHash = await storage.read(key: _offlineLoginPasswordHashKey);
     if (storedEmail == null || storedHash == null) return false;
     if (storedEmail.toLowerCase() != email.trim().toLowerCase()) return false;
 
@@ -369,7 +368,8 @@ class ApiService {
 
       if (response.statusCode == 200) {
         if (response.data['access'] != null) {
-          await storage.write(key: _accessTokenKey, value: response.data['access']);
+          await storage.write(
+              key: _accessTokenKey, value: response.data['access']);
         }
         if (response.data['refresh'] != null) {
           await storage.write(
@@ -409,14 +409,13 @@ class ApiService {
           final deviceOnline = await isOnline;
           throw DioException(
             requestOptions: RequestOptions(path: 'accounts/login/'),
-            error:
-                deviceOnline
-                    ? 'You are connected to the internet, but the SeedVest '
-                        'server is not responding right now. We also could '
-                        'not verify a saved offline login for this account on '
-                        'this device. Please try again shortly.'
-                    : 'Unable to login offline. Please check your credentials '
-                        'and try again when online.',
+            error: deviceOnline
+                ? 'You are connected to the internet, but the SeedVest '
+                    'server is not responding right now. We also could '
+                    'not verify a saved offline login for this account on '
+                    'this device. Please try again shortly.'
+                : 'Unable to login offline. Please check your credentials '
+                    'and try again when online.',
             type: DioExceptionType.unknown,
           );
         }
@@ -427,13 +426,12 @@ class ApiService {
         final deviceOnline = await isOnline;
         throw DioException(
           requestOptions: RequestOptions(path: 'accounts/login/'),
-          error:
-              deviceOnline
-                  ? 'You are connected to the internet, but the SeedVest '
-                      'server is not responding right now. Please try again '
-                      'in a few minutes.'
-                  : 'No internet connection available. Please check your '
-                      'connection and try again.',
+          error: deviceOnline
+              ? 'You are connected to the internet, but the SeedVest '
+                  'server is not responding right now. Please try again '
+                  'in a few minutes.'
+              : 'No internet connection available. Please check your '
+                  'connection and try again.',
           type: DioExceptionType.connectionError,
         );
       }
@@ -471,7 +469,8 @@ class ApiService {
       });
 
       if (response.statusCode == 200 && response.data['access'] != null) {
-        await storage.write(key: _accessTokenKey, value: response.data['access']);
+        await storage.write(
+            key: _accessTokenKey, value: response.data['access']);
         return true;
       }
       return false;
@@ -683,7 +682,8 @@ class ApiService {
       if (groupId != null) 'group_id': groupId,
       if (cycleId != null) 'cycle_id': cycleId,
       if (status != null && status.isNotEmpty) 'status': status,
-      if (dateFrom != null) 'date_from': dateFrom.toIso8601String().split('T')[0],
+      if (dateFrom != null)
+        'date_from': dateFrom.toIso8601String().split('T')[0],
       if (dateTo != null) 'date_to': dateTo.toIso8601String().split('T')[0],
       if (ordering != null && ordering.isNotEmpty) 'ordering': ordering,
     };
@@ -788,13 +788,13 @@ class ApiService {
 
   Future<Response> approveUser(int userId) async {
     return await _executeWithOfflineQueue(
-        'POST', 'accounts/users//approve/');
+        'POST', 'accounts/users/$userId/approve/');
   }
 
   Future<Response> rejectUser(int userId, String reason) async {
     return await _executeWithOfflineQueue(
       'POST',
-      'accounts/users//reject/',
+      'accounts/users/$userId/reject/',
       data: {'reason': reason},
     );
   }
@@ -802,7 +802,7 @@ class ApiService {
   Future<Response> updateUserRole(int userId, String role) async {
     return await _executeWithOfflineQueue(
       'POST',
-      'accounts/users//set_role/',
+      'accounts/users/$userId/set_role/',
       data: {'role': role},
     );
   }
@@ -814,14 +814,14 @@ class ApiService {
       data['new_password'] = newPassword.trim();
     }
     return await dio.post(
-      'accounts/users//admin-reset-password/',
+      'accounts/users/$userId/admin-reset-password/',
       data: data,
     );
   }
 
   Future<Response> resendSetupLink(int userId) async {
     await _ensureOnline();
-    return await dio.post('accounts/users//resend-setup-link/');
+    return await dio.post('accounts/users/$userId/resend-setup-link/');
   }
 
   Future<Response> testPushNotification() async {
@@ -830,7 +830,7 @@ class ApiService {
   }
 
   Future<Response> deleteUser(int userId) async {
-    return await _executeWithOfflineQueue('DELETE', 'accounts/users//');
+    return await _executeWithOfflineQueue('DELETE', 'accounts/users/$userId/');
   }
 
   Future<Response> deleteSelfAccount() async {
@@ -840,19 +840,19 @@ class ApiService {
 
   Future<Response> approveContribution(int id) async {
     return await _executeWithOfflineQueue(
-        'POST', 'finance/contributions//approve/');
+        'POST', 'finance/contributions/$id/approve/');
   }
 
   Future<Response> rejectContribution(int id, String reason) async {
     return await _executeWithOfflineQueue(
       'POST',
-      'finance/contributions//reject/',
+      'finance/contributions/$id/reject/',
       data: {'reason': reason},
     );
   }
 
   Future<Response> updateContribution(int id, Map<String, dynamic> data) async {
-    return await _executeWithOfflineQueue('PATCH', 'finance/contributions//',
+    return await _executeWithOfflineQueue('PATCH', 'finance/contributions/$id/',
         data: data);
   }
 
@@ -1079,6 +1079,7 @@ class ApiService {
       if (cycleId != null) 'cycle_id': cycleId,
     });
   }
+
   // ======================
   // Loan Methods
   // ======================
@@ -1106,9 +1107,11 @@ class ApiService {
     return await dio.post('finance/loans/apply/', data: data);
   }
 
-  Future<Response> respondGuarantor(int loanId, Map<String, dynamic> data) async {
+  Future<Response> respondGuarantor(
+      int loanId, Map<String, dynamic> data) async {
     await _ensureOnline();
-    return await dio.post('finance/loans/$loanId/respond-guarantor/', data: data);
+    return await dio.post('finance/loans/$loanId/respond-guarantor/',
+        data: data);
   }
 
   Future<Response> approveLoan(int loanId) async {
@@ -1121,7 +1124,8 @@ class ApiService {
     return await dio.post('finance/loans/$loanId/disburse/');
   }
 
-  Future<Response> makeLoanRepayment(int loanId, Map<String, dynamic> data) async {
+  Future<Response> makeLoanRepayment(
+      int loanId, Map<String, dynamic> data) async {
     await _ensureOnline();
     return await dio.post('finance/loans/$loanId/repay/', data: data);
   }
