@@ -83,6 +83,44 @@ class LoanRepayment {
   }
 }
 
+class LoanInstallment {
+  final int id;
+  final int loanId;
+  final int installmentNumber;
+  final DateTime dueDate;
+  final double principalAmount;
+  final double interestAmount;
+  final double totalDue;
+  final String status;
+  final DateTime? paidDate;
+
+  const LoanInstallment({
+    required this.id,
+    required this.loanId,
+    required this.installmentNumber,
+    required this.dueDate,
+    required this.principalAmount,
+    required this.interestAmount,
+    required this.totalDue,
+    required this.status,
+    this.paidDate,
+  });
+
+  factory LoanInstallment.fromJson(Map<String, dynamic> json) {
+    return LoanInstallment(
+      id: json['id'] as int,
+      loanId: json['loan'] as int,
+      installmentNumber: (json['installment_number'] as num).toInt(),
+      dueDate: _asDate(json['due_date']) ?? DateTime.now(),
+      principalAmount: _asDouble(json['principal_amount']),
+      interestAmount: _asDouble(json['interest_amount']),
+      totalDue: _asDouble(json['total_due']),
+      status: json['status']?.toString() ?? 'PENDING',
+      paidDate: _asDate(json['paid_date']),
+    );
+  }
+}
+
 class Loan {
   final int id;
   final int userId;
@@ -104,6 +142,7 @@ class Loan {
   final DateTime createdAt;
   final List<LoanGuarantor> guarantors;
   final List<LoanRepayment> repayments;
+  final List<LoanInstallment> installments;
 
   const Loan({
     required this.id,
@@ -126,6 +165,7 @@ class Loan {
     required this.createdAt,
     required this.guarantors,
     required this.repayments,
+    required this.installments,
   });
 
   factory Loan.fromJson(Map<String, dynamic> json) {
@@ -154,10 +194,16 @@ class Loan {
       dueDate: _asDate(json['due_date']),
       createdAt: _asDate(json['created_at']) ?? DateTime.now(),
       guarantors: valuesFor('guarantors')
-          .map((item) => LoanGuarantor.fromJson(Map<String, dynamic>.from(item as Map)))
+          .map((item) =>
+              LoanGuarantor.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList(),
       repayments: valuesFor('repayments')
-          .map((item) => LoanRepayment.fromJson(Map<String, dynamic>.from(item as Map)))
+          .map((item) =>
+              LoanRepayment.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList(),
+      installments: valuesFor('installments')
+          .map((item) =>
+              LoanInstallment.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList(),
     );
   }
@@ -166,7 +212,8 @@ class Loan {
       guarantors.any((guarantor) => guarantor.guarantorUserId == userId);
 }
 
-double _asDouble(dynamic value) => double.tryParse(value?.toString() ?? '') ?? 0.0;
+double _asDouble(dynamic value) =>
+    double.tryParse(value?.toString() ?? '') ?? 0.0;
 
 DateTime? _asDate(dynamic value) =>
     value == null ? null : DateTime.tryParse(value.toString());

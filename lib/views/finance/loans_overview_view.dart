@@ -691,6 +691,26 @@ class _LoanCard extends StatelessWidget {
                 ),
               ),
             ],
+            if (loan.installments.isNotEmpty) ...[
+              const Divider(height: 28),
+              Text('Installment schedule',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 6),
+              ...loan.installments.map(
+                (installment) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                      'Installment ${installment.installmentNumber} - ${_date(installment.dueDate)}'),
+                  subtitle: Text(
+                      'Principal KES ${_money(installment.principalAmount)} | Interest KES ${_money(installment.interestAmount)}'),
+                  trailing: Text(
+                    '${installment.status}\nKES ${_money(installment.totalDue)}',
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+              ),
+            ],
             if (isPendingGuarantor ||
                 (canManage &&
                     (loan.status == 'PENDING_APPROVAL' ||
