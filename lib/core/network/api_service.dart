@@ -788,13 +788,13 @@ class ApiService {
 
   Future<Response> approveUser(int userId) async {
     return await _executeWithOfflineQueue(
-        'POST', 'accounts/users/$userId/approve/');
+        'POST', 'accounts/users//approve/');
   }
 
   Future<Response> rejectUser(int userId, String reason) async {
     return await _executeWithOfflineQueue(
       'POST',
-      'accounts/users/$userId/reject/',
+      'accounts/users//reject/',
       data: {'reason': reason},
     );
   }
@@ -802,13 +802,35 @@ class ApiService {
   Future<Response> updateUserRole(int userId, String role) async {
     return await _executeWithOfflineQueue(
       'POST',
-      'accounts/users/$userId/set_role/',
+      'accounts/users//set_role/',
       data: {'role': role},
     );
   }
 
+  Future<Response> adminResetPassword(int userId, {String? newPassword}) async {
+    await _ensureOnline();
+    final data = <String, dynamic>{};
+    if (newPassword != null && newPassword.trim().isNotEmpty) {
+      data['new_password'] = newPassword.trim();
+    }
+    return await dio.post(
+      'accounts/users//admin-reset-password/',
+      data: data,
+    );
+  }
+
+  Future<Response> resendSetupLink(int userId) async {
+    await _ensureOnline();
+    return await dio.post('accounts/users//resend-setup-link/');
+  }
+
+  Future<Response> testPushNotification() async {
+    await _ensureOnline();
+    return await dio.post('notifications/test-push/');
+  }
+
   Future<Response> deleteUser(int userId) async {
-    return await _executeWithOfflineQueue('DELETE', 'accounts/users/$userId/');
+    return await _executeWithOfflineQueue('DELETE', 'accounts/users//');
   }
 
   Future<Response> deleteSelfAccount() async {
@@ -818,19 +840,19 @@ class ApiService {
 
   Future<Response> approveContribution(int id) async {
     return await _executeWithOfflineQueue(
-        'POST', 'finance/contributions/$id/approve/');
+        'POST', 'finance/contributions//approve/');
   }
 
   Future<Response> rejectContribution(int id, String reason) async {
     return await _executeWithOfflineQueue(
       'POST',
-      'finance/contributions/$id/reject/',
+      'finance/contributions//reject/',
       data: {'reason': reason},
     );
   }
 
   Future<Response> updateContribution(int id, Map<String, dynamic> data) async {
-    return await _executeWithOfflineQueue('PATCH', 'finance/contributions/$id/',
+    return await _executeWithOfflineQueue('PATCH', 'finance/contributions//',
         data: data);
   }
 
@@ -1056,5 +1078,85 @@ class ApiService {
       'group_id': groupId,
       if (cycleId != null) 'cycle_id': cycleId,
     });
+  }
+  // ======================
+  // Loan Methods
+  // ======================
+  Future<Response> getLoans({int? groupId, String? status}) async {
+    return await _getWithCache(
+      'finance/loans/',
+      customCacheKey: 'loans-${groupId ?? 'all'}-${status ?? 'all'}',
+      queryParameters: {
+        if (groupId != null) 'group_id': groupId,
+        if (status != null && status.isNotEmpty) 'status': status,
+      },
+    );
+  }
+
+  Future<Response> getEligibleGuarantors(int groupId) async {
+    return await _getWithCache(
+      'finance/loans/eligible-guarantors/',
+      customCacheKey: 'loan-guarantors-$groupId',
+      queryParameters: {'group_id': groupId},
+    );
+  }
+
+  Future<Response> applyLoan(Map<String, dynamic> data) async {
+    await _ensureOnline();
+    return await dio.post('finance/loans/apply/', data: data);
+  }
+
+  Future<Response> respondGuarantor(int loanId, Map<String, dynamic> data) async {
+    await _ensureOnline();
+    return await dio.post('finance/loans/$loanId/respond-guarantor/', data: data);
+  }
+
+  Future<Response> approveLoan(int loanId) async {
+    await _ensureOnline();
+    return await dio.post('finance/loans/$loanId/approve/');
+  }
+
+  Future<Response> disburseLoan(int loanId) async {
+    await _ensureOnline();
+    return await dio.post('finance/loans/$loanId/disburse/');
+  }
+
+  Future<Response> makeLoanRepayment(int loanId, Map<String, dynamic> data) async {
+    await _ensureOnline();
+    return await dio.post('finance/loans/$loanId/repay/', data: data);
+  }
+
+  Future<Response> verifyLoanRepayment(int loanId, int repaymentId) async {
+    await _ensureOnline();
+    return await dio.post(
+      'finance/loans/$loanId/verify-repayment/',
+      data: {'repayment_id': repaymentId},
+    );
+  }
+
+  Future<Response> downloadFinancialCycleExcel(int cycleId) async {
+    await _ensureOnline();
+    return await dio.get(
+      'finance/reports/financial-cycle-excel/',
+      queryParameters: {'cycle_id': cycleId},
+      options: Options(responseType: ResponseType.bytes),
+    );
+  }
+
+  Future<Response> downloadMemberStatementPdf({
+    required int groupId,
+    int? cycleId,
+    int? memberId,
+  }) async {
+    await _ensureOnline();
+    return await dio.get(
+      'finance/reports/member-statement-pdf/',
+      queryParameters: {
+        'group_id': groupId,
+        if (cycleId != null) 'cycle_id': cycleId,
+        if (memberId != null) 'user_id': memberId,
+      },
+      options: Options(responseType: ResponseType.bytes),
+    );
   }
 }

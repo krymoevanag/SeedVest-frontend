@@ -5,6 +5,7 @@ class User {
   final String role;
   final bool isApproved;
   final String applicationStatus;
+  final bool isActive;
   final bool isSuperuser;
   final String? phoneNumber;
   final String? membershipNumber;
@@ -20,6 +21,7 @@ class User {
     required this.role,
     this.isApproved = false,
     this.applicationStatus = 'PENDING',
+    this.isActive = true,
     this.isSuperuser = false,
     this.phoneNumber,
     this.membershipNumber,
@@ -38,6 +40,7 @@ class User {
       isApproved: json['is_approved'] ?? false,
       applicationStatus: json['application_status'] ??
           'APPROVED', // Default to APPROVED for existing users if missing
+      isActive: json['is_active'] ?? true,
       isSuperuser: json['is_superuser'] ?? false,
       phoneNumber: json['phone_number'],
       membershipNumber: json['membership_number'],
@@ -56,6 +59,7 @@ class User {
       'role': role,
       'is_approved': isApproved,
       'application_status': applicationStatus,
+      'is_active': isActive,
       'is_superuser': isSuperuser,
       'phone_number': phoneNumber,
       'membership_number': membershipNumber,

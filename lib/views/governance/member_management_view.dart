@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/governance_viewmodel.dart';
 import '../../viewmodels/contributions_viewmodel.dart';
@@ -236,12 +237,20 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                                 color: Colors.red.shade900,
                                               ),
                                               _buildActionButton(
-                                                icon: Icons.refresh_outlined,
-                                                label: "Reset",
+                                                icon: Icons.lock_reset_outlined,
+                                                label: "Password",
+                                                onPressed: () =>
+                                                    _showAdminPasswordResetDialog(
+                                                        context, user),
+                                                color: AppColors.primary,
+                                              ),
+                                              _buildActionButton(
+                                                icon: Icons.archive_outlined,
+                                                label: "Archive Fin",
                                                 onPressed: () =>
                                                     _showResetDialog(
                                                         context, user),
-                                                color: Colors.orange.shade800,
+                                                color: Colors.orange.shade900,
                                               ),
                                               _buildActionButton(
                                                 icon: Icons.group_add_outlined,
@@ -1256,6 +1265,299 @@ class _MemberManagementViewState extends State<MemberManagementView> {
           },
         );
       },
+    );
+  }
+
+  void _showAdminPasswordResetDialog(BuildContext context, User user) {
+    final customPasswordController = TextEditingController();
+    bool useCustomPassword = false;
+    bool isSubmitting = false;
+    final hasEmail = user.email.trim().isNotEmpty;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  const Icon(Icons.lock_reset, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Password & Access: ${user.fullName}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (hasEmail && !user.isActive) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Account Pending Setup',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'An account setup email link can be resent to ${user.email}.',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.mark_email_read_outlined,
+                                  size: 16),
+                              label: const Text('Resend Setup Email'),
+                              onPressed: isSubmitting
+                                  ? null
+                                  : () async {
+                                      setDialogState(() => isSubmitting = true);
+                                      final result = await context
+                                          .read<GovernanceViewModel>()
+                                          .resendSetupLink(user.id);
+                                      if (dialogContext.mounted) {
+                                        Navigator.pop(dialogContext);
+                                      }
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              result != null
+                                                  ? (result['message'] ??
+                                                      'Setup email sent!')
+                                                  : 'Failed to send setup email.',
+                                            ),
+                                            backgroundColor: result != null
+                                                ? AppColors.success
+                                                : AppColors.error,
+                                          ),
+                                        );
+                                      }
+                                    },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    const Text(
+                      'Admin Direct Password Reset',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sets a new temporary password for ${user.fullName} instantly. The account will be marked active.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Set custom password',
+                          style: TextStyle(fontSize: 14)),
+                      subtitle: const Text('Otherwise auto-generates a password',
+                          style: TextStyle(fontSize: 12)),
+                      value: useCustomPassword,
+                      onChanged: (val) =>
+                          setDialogState(() => useCustomPassword = val),
+                    ),
+                    if (useCustomPassword) ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: customPasswordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'New Temporary Password',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.key),
+                          hintText: 'Minimum 8 characters',
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final pass = customPasswordController.text.trim();
+                          if (useCustomPassword && pass.length < 8) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Custom password must be at least 8 characters'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSubmitting = true);
+
+                          final result = await context
+                              .read<GovernanceViewModel>()
+                              .adminResetPassword(
+                                user.id,
+                                newPassword:
+                                    useCustomPassword ? pass : null,
+                              );
+
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+
+                          if (context.mounted) {
+                            if (result != null &&
+                                result['credentials'] != null) {
+                              _showCredentialsSummaryModal(
+                                context,
+                                Map<String, dynamic>.from(
+                                  result['credentials'] as Map,
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    result?['detail'] ??
+                                        'Password reset successfully!',
+                                  ),
+                                  backgroundColor: result != null
+                                      ? AppColors.success
+                                      : AppColors.error,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Reset Password'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCredentialsSummaryModal(
+      BuildContext context, Map<String, dynamic> creds) {
+    final name = creds['name'] ?? 'Member';
+    final membershipNo = creds['membership_number'] ?? '';
+    final phone = creds['phone_number'] ?? '';
+    final password = creds['initial_password'] ?? '';
+
+    final shareText = '''
+SeedVest Member Access Restored
+Name: $name
+Membership No: $membershipNo
+Login Phone: $phone
+Temporary Password: $password
+
+Please log in and update your password upon signing in.
+''';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Credentials Generated'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Password reset successfully! You can copy these credentials to send via SMS or WhatsApp:',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Member: $name',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('Membership No: $membershipNo'),
+                  const SizedBox(height: 4),
+                  Text('Login Phone: $phone'),
+                  const SizedBox(height: 4),
+                  SelectableText(
+                    'Temporary Password: $password',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, color: Colors.blue),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton.icon(
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('COPY CREDENTIALS'),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: shareText));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Credentials copied to clipboard!')),
+              );
+            },
+          ),
+          TextButton(
+            child: const Text('CLOSE'),
+            onPressed: () => Navigator.pop(dialogContext),
+          ),
+        ],
+      ),
     );
   }
 }

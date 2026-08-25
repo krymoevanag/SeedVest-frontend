@@ -19,6 +19,8 @@ class _AdminMemberRegistrationViewState
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _useCustomPassword = false;
   String _selectedRole = 'MEMBER';
   int? _selectedGroupId;
 
@@ -35,6 +37,7 @@ class _AdminMemberRegistrationViewState
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -48,6 +51,8 @@ class _AdminMemberRegistrationViewState
       phoneNumber: _phoneController.text.trim(),
       role: _selectedRole,
       groupId: _selectedGroupId,
+      initialPassword:
+          _useCustomPassword ? _passwordController.text.trim() : null,
     );
 
     if (mounted) {
@@ -267,7 +272,38 @@ Initial Password: $password
                 ],
                 onChanged: (val) => setState(() => _selectedRole = val!),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 20),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Set custom initial password'),
+                subtitle: const Text('Default auto-generates a strong temporary password'),
+                value: _useCustomPassword,
+                onChanged: (val) => setState(() => _useCustomPassword = val),
+              ),
+              if (_useCustomPassword) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Custom Initial Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    hintText: 'Minimum 8 characters',
+                  ),
+                  validator: (val) {
+                    if (_useCustomPassword) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Custom password is required';
+                      }
+                      if (val.trim().length < 8) {
+                        return 'Password must be at least 8 characters';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+              ],
+              const SizedBox(height: 36),
               Selector<GovernanceViewModel, bool>(
                 selector: (_, vm) => vm.isLoading,
                 builder: (context, isLoading, child) {

@@ -206,6 +206,7 @@ class GovernanceViewModel extends ChangeNotifier {
     required String phoneNumber,
     required String role,
     int? groupId,
+    String? initialPassword,
   }) async {
     _setLoading(true);
     try {
@@ -219,6 +220,10 @@ class GovernanceViewModel extends ChangeNotifier {
 
       if (email.trim().isNotEmpty) {
         payload['email'] = email.trim();
+      }
+
+      if (initialPassword != null && initialPassword.trim().isNotEmpty) {
+        payload['initial_password'] = initialPassword.trim();
       }
 
       if (groupId != null) {
@@ -238,6 +243,52 @@ class GovernanceViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error registering member: $e');
       return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<Map<String, dynamic>?> adminResetPassword(int userId, {String? newPassword}) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.adminResetPassword(userId, newPassword: newPassword);
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        await fetchApprovedUsers();
+        return response.data as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error in adminResetPassword: $e');
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<Map<String, dynamic>?> resendSetupLink(int userId) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.resendSetupLink(userId);
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error in resendSetupLink: $e');
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> testPushNotification() async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.testPushNotification();
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error sending test push notification: $e');
+      return false;
     } finally {
       _setLoading(false);
     }
