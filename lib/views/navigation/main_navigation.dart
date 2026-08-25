@@ -471,6 +471,33 @@ class _MainNavigationState extends State<MainNavigation> {
                   Navigator.pushNamed(context, '/finance/targets');
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.account_balance_wallet_outlined),
+                title: const Text('My Financial Profile'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/finance/profile');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text('Savings History'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/finance/history');
+                },
+              ),
+              if (userViewModel.isAdmin ||
+                  userViewModel.isTreasurer ||
+                  userViewModel.isFinancialSecretary)
+                ListTile(
+                  leading: const Icon(Icons.assessment_outlined),
+                  title: const Text('Loan Oversight'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/finance/loan-dashboard');
+                  },
+                ),
               if (userViewModel.isTreasurer ||
                   userViewModel.isFinancialSecretary) ...[
                 const Divider(),

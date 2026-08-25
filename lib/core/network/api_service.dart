@@ -1034,6 +1034,56 @@ class ApiService {
         });
   }
 
+
+  Future<Response> getMemberFinancialProfile(int memberId) async {
+    return await _getWithCache('finance/members/$memberId/financial-profile/');
+  }
+
+  Future<Response> getMemberSavingsHistory(
+    int memberId, {
+    DateTime? startDate,
+    DateTime? endDate,
+    String? type,
+  }) async {
+    return await _getWithCache(
+      'finance/members/$memberId/savings-history/',
+      queryParameters: {
+        if (startDate != null)
+          'start_date': startDate.toIso8601String().split('T')[0],
+        if (endDate != null)
+          'end_date': endDate.toIso8601String().split('T')[0],
+        if (type != null && type.isNotEmpty) 'type': type,
+      },
+    );
+  }
+
+  Future<Response> getLoanDashboard({int? groupId}) async {
+    return await _getWithCache(
+      'finance/loans/dashboard/',
+      queryParameters: {if (groupId != null) 'group_id': groupId},
+    );
+  }
+
+  Future<Response> getActiveLoans({int? groupId}) async {
+    return await _getWithCache(
+      'finance/loans/active/',
+      queryParameters: {if (groupId != null) 'group_id': groupId},
+    );
+  }
+
+  Future<Response> getOverdueLoans({int? groupId}) async {
+    return await _getWithCache(
+      'finance/loans/overdue/',
+      queryParameters: {if (groupId != null) 'group_id': groupId},
+    );
+  }
+
+  Future<Response> getLoansDueSoon({int? groupId}) async {
+    return await _getWithCache(
+      'finance/loans/due-soon/',
+      queryParameters: {if (groupId != null) 'group_id': groupId},
+    );
+  }
   Future<Response> getAutoSaveHistory() async {
     return await _getWithCache('finance/auto-save-history/');
   }

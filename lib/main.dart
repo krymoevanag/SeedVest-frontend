@@ -43,6 +43,9 @@ import 'views/finance/financial_secretary_report_view.dart';
 import 'views/finance/auto_saving_config_view.dart';
 import 'views/finance/savings_targets_view.dart';
 import 'views/finance/loans_overview_view.dart';
+import 'views/finance/member_financial_profile_view.dart';
+import 'views/finance/savings_history_view.dart';
+import 'views/finance/admin_loan_dashboard_view.dart';
 import 'views/support/help_screen.dart';
 import 'views/support/terms_conditions_screen.dart';
 import 'views/support/about_us_screen.dart';
@@ -343,6 +346,10 @@ class _SeedVestAppState extends State<SeedVestApp> {
         '/finance/auto-savings': (context) => const AutoSavingConfigView(),
         '/finance/targets': (context) => const SavingsTargetsView(),
         '/finance/loans': (context) => const LoansOverviewView(),
+        '/finance/profile': (context) => const MemberFinancialProfileView(),
+        '/finance/history': (context) => const SavingsHistoryView(),
+        '/finance/loan-dashboard': (context) =>
+          const AdminLoanDashboardView(),
         '/help': (context) => const HelpScreen(),
         '/terms': (context) => const TermsConditionsScreen(),
         '/about': (context) => const AboutUsScreen(),
