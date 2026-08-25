@@ -1202,8 +1202,9 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                               .read<GovernanceViewModel>()
                               .updateMembershipRole(membershipId, selectedRole);
 
-                          if (dialogContext.mounted)
+                          if (dialogContext.mounted) {
                             Navigator.pop(dialogContext);
+                          }
 
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -1260,8 +1261,9 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                               .read<GovernanceViewModel>()
                               .removeFromGroup(membershipId);
 
-                          if (dialogContext.mounted)
+                          if (dialogContext.mounted) {
                             Navigator.pop(dialogContext);
+                          }
 
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(

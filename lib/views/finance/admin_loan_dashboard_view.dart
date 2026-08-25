@@ -41,8 +41,9 @@ class _AdminLoanDashboardViewState extends State<AdminLoanDashboardView> {
         _loans = data.map((loan) => Map<String, dynamic>.from(loan)).toList();
       });
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Unable to load the loan dashboard.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
