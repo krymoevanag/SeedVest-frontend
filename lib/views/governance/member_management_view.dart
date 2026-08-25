@@ -42,9 +42,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
     final viewModel = context.watch<GovernanceViewModel>();
     final canManageMembers = context.read<UserViewModel>().isAdmin ||
         context.read<UserViewModel>().isTreasurer;
-    final usersNeedingGroups = viewModel.approvedUsers
-        .where((user) => user.groupIds.isEmpty)
-        .length;
+    final usersNeedingGroups =
+        viewModel.approvedUsers.where((user) => user.groupIds.isEmpty).length;
     final users = viewModel.approvedUsers.where((user) {
       final name = user.fullName.toLowerCase();
       final email = user.email.toLowerCase();
@@ -199,83 +198,89 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                           _buildFinanceRow('Total Penalties',
                                               user.totalPenalties, Colors.red),
                                           const Divider(height: 24),
-                                          if (canManageMembers) Wrap(
-                                            alignment: WrapAlignment.center,
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: [
-                                              _buildActionButton(
-                                                icon: Icons.add_circle_outline,
-                                                label: "Contrib",
-                                                onPressed: () =>
-                                                    _showAddContributionDialog(
-                                                        context, user),
-                                                color: Colors.green,
-                                              ),
-                                              _buildActionButton(
-                                                icon: Icons.edit_outlined,
-                                                label: "Role",
-                                                onPressed: () =>
-                                                    _showRoleDialog(
-                                                        context, user),
-                                              ),
-                                              _buildActionButton(
-                                                icon: Icons.gavel_outlined,
-                                                label: "Penalty",
-                                                onPressed: () =>
-                                                    _showPenaltyDialog(
-                                                        context, user),
-                                                color: Colors.red,
-                                              ),
-                                              _buildActionButton(
-                                                icon: Icons
-                                                    .delete_forever_outlined,
-                                                label: "Delete",
-                                                onPressed: () =>
-                                                    _showConfirmDeleteDialog(
-                                                        context, user),
-                                                color: Colors.red.shade900,
-                                              ),
-                                              _buildActionButton(
-                                                icon: Icons.lock_reset_outlined,
-                                                label: "Password",
-                                                onPressed: () =>
-                                                    _showAdminPasswordResetDialog(
-                                                        context, user),
-                                                color: AppColors.primary,
-                                              ),
-                                              _buildActionButton(
-                                                icon: Icons.archive_outlined,
-                                                label: "Archive Fin",
-                                                onPressed: () =>
-                                                    _showResetDialog(
-                                                        context, user),
-                                                color: Colors.orange.shade900,
-                                              ),
-                                              _buildActionButton(
-                                                icon: Icons.group_add_outlined,
-                                                label: user.groupIds.isEmpty
-                                                    ? "Assign Group"
-                                                    : "Manage Groups",
-                                                onPressed: () =>
-                                                    _showMemberGroupsDialog(
-                                                        context, user),
-                                              ),
-                                            ],
-                                          ) else const Center(
-                                            child: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                  vertical: 8.0),
-                                              child: Text(
-                                                "Read-only access for Financial Secretary",
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey,
-                                                  fontStyle: FontStyle.italic,
+                                          if (canManageMembers)
+                                            Wrap(
+                                              alignment: WrapAlignment.center,
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                _buildActionButton(
+                                                  icon:
+                                                      Icons.add_circle_outline,
+                                                  label: "Contrib",
+                                                  onPressed: () =>
+                                                      _showAddContributionDialog(
+                                                          context, user),
+                                                  color: Colors.green,
+                                                ),
+                                                _buildActionButton(
+                                                  icon: Icons.edit_outlined,
+                                                  label: "Role",
+                                                  onPressed: () =>
+                                                      _showRoleDialog(
+                                                          context, user),
+                                                ),
+                                                _buildActionButton(
+                                                  icon: Icons.gavel_outlined,
+                                                  label: "Penalty",
+                                                  onPressed: () =>
+                                                      _showPenaltyDialog(
+                                                          context, user),
+                                                  color: Colors.red,
+                                                ),
+                                                _buildActionButton(
+                                                  icon: Icons
+                                                      .delete_forever_outlined,
+                                                  label: "Delete",
+                                                  onPressed: () =>
+                                                      _showConfirmDeleteDialog(
+                                                          context, user),
+                                                  color: Colors.red.shade900,
+                                                ),
+                                                _buildActionButton(
+                                                  icon:
+                                                      Icons.lock_reset_outlined,
+                                                  label: "Password",
+                                                  onPressed: () =>
+                                                      _showAdminPasswordResetDialog(
+                                                          context, user),
+                                                  color: AppColors.primary,
+                                                ),
+                                                _buildActionButton(
+                                                  icon: Icons.archive_outlined,
+                                                  label: "Archive Fin",
+                                                  onPressed: () =>
+                                                      _showResetDialog(
+                                                          context, user),
+                                                  color: Colors.orange.shade900,
+                                                ),
+                                                _buildActionButton(
+                                                  icon:
+                                                      Icons.group_add_outlined,
+                                                  label: user.groupIds.isEmpty
+                                                      ? "Assign Group"
+                                                      : "Manage Groups",
+                                                  onPressed: () =>
+                                                      _showMemberGroupsDialog(
+                                                          context, user),
+                                                ),
+                                              ],
+                                            )
+                                          else
+                                            const Center(
+                                              child: Padding(
+                                                padding: EdgeInsets.symmetric(
+                                                    vertical: 8.0),
+                                                child: Text(
+                                                  "Read-only access for Financial Secretary",
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey,
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                          ),
                                         ],
                                       ),
                                     ),
@@ -749,6 +754,18 @@ class _MemberManagementViewState extends State<MemberManagementView> {
   void _showConfirmDeleteDialog(BuildContext context, dynamic user) {
     final confirmController = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    final email = user.email.trim();
+    final membershipNumber = user.membershipNumber?.trim() ?? '';
+    final confirmationLabel = email.isNotEmpty
+        ? 'email'
+        : membershipNumber.isNotEmpty
+            ? 'membership number'
+            : 'full name';
+    final confirmationValue = email.isNotEmpty
+        ? email
+        : membershipNumber.isNotEmpty
+            ? membershipNumber
+            : user.fullName.trim();
 
     showDialog(
       context: context,
@@ -768,17 +785,18 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 Text(
-                    'To confirm, please type the member\'s email: ${user.email}'),
+                    'To confirm, please type the member\'s $confirmationLabel: '
+                    '$confirmationValue'),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: confirmController,
                   decoration: const InputDecoration(
-                    labelText: 'Confirm Email',
+                    labelText: 'Confirmation',
                     border: OutlineInputBorder(),
                   ),
                   validator: (val) {
-                    if (val != user.email) {
-                      return 'Email does not match';
+                    if (val?.trim() != confirmationValue) {
+                      return 'Confirmation does not match';
                     }
                     return null;
                   },
@@ -1145,8 +1163,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
     );
   }
 
-  void _showEditMembershipRoleDialog(
-      BuildContext context, int membershipId, String groupName, String currentRole) {
+  void _showEditMembershipRoleDialog(BuildContext context, int membershipId,
+      String groupName, String currentRole) {
     String selectedRole = currentRole;
     bool isSubmitting = false;
 
@@ -1165,7 +1183,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                 ),
                 items: const [
                   DropdownMenuItem(value: 'MEMBER', child: Text('Member')),
-                  DropdownMenuItem(value: 'TREASURER', child: Text('Treasurer')),
+                  DropdownMenuItem(
+                      value: 'TREASURER', child: Text('Treasurer')),
                 ],
                 onChanged: (val) => setDialogState(() => selectedRole = val!),
               ),
@@ -1183,7 +1202,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                               .read<GovernanceViewModel>()
                               .updateMembershipRole(membershipId, selectedRole);
 
-                          if (dialogContext.mounted) Navigator.pop(dialogContext);
+                          if (dialogContext.mounted)
+                            Navigator.pop(dialogContext);
 
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -1191,7 +1211,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                 content: Text(success
                                     ? 'Role updated successfully!'
                                     : 'Failed to update role'),
-                                backgroundColor: success ? Colors.green : Colors.red,
+                                backgroundColor:
+                                    success ? Colors.green : Colors.red,
                               ),
                             );
                           }
@@ -1211,8 +1232,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
     );
   }
 
-  void _showRemoveFromGroupDialog(
-      BuildContext context, int membershipId, String groupName, String userName) {
+  void _showRemoveFromGroupDialog(BuildContext context, int membershipId,
+      String groupName, String userName) {
     bool isSubmitting = false;
 
     showDialog(
@@ -1222,7 +1243,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: const Text('Remove from Group'),
-              content: Text('Are you sure you want to remove $userName from $groupName? '
+              content: Text(
+                  'Are you sure you want to remove $userName from $groupName? '
                   'Historical contributions will be preserved but the member will no longer be active in this group.'),
               actions: [
                 TextButton(
@@ -1238,7 +1260,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                               .read<GovernanceViewModel>()
                               .removeFromGroup(membershipId);
 
-                          if (dialogContext.mounted) Navigator.pop(dialogContext);
+                          if (dialogContext.mounted)
+                            Navigator.pop(dialogContext);
 
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -1246,7 +1269,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                                 content: Text(success
                                     ? 'Member removed from group successfully!'
                                     : 'Failed to remove member'),
-                                backgroundColor: success ? Colors.green : Colors.red,
+                                backgroundColor:
+                                    success ? Colors.green : Colors.red,
                               ),
                             );
                           }
@@ -1258,7 +1282,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                           height: 20,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
-                      : const Text('Remove', style: TextStyle(color: Colors.white)),
+                      : const Text('Remove',
+                          style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -1371,7 +1396,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Set custom password',
                           style: TextStyle(fontSize: 14)),
-                      subtitle: const Text('Otherwise auto-generates a password',
+                      subtitle: const Text(
+                          'Otherwise auto-generates a password',
                           style: TextStyle(fontSize: 12)),
                       value: useCustomPassword,
                       onChanged: (val) =>
@@ -1395,9 +1421,8 @@ class _MemberManagementViewState extends State<MemberManagementView> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () => Navigator.pop(dialogContext),
+                  onPressed:
+                      isSubmitting ? null : () => Navigator.pop(dialogContext),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
@@ -1422,8 +1447,7 @@ class _MemberManagementViewState extends State<MemberManagementView> {
                               .read<GovernanceViewModel>()
                               .adminResetPassword(
                                 user.id,
-                                newPassword:
-                                    useCustomPassword ? pass : null,
+                                newPassword: useCustomPassword ? pass : null,
                               );
 
                           if (dialogContext.mounted) {
@@ -1561,4 +1585,3 @@ Please log in and update your password upon signing in.
     );
   }
 }
-
