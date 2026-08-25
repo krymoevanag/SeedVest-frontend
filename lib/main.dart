@@ -24,6 +24,7 @@ import 'viewmodels/penalties_viewmodel.dart';
 import 'views/finance/penalties_view.dart';
 import 'viewmodels/governance_viewmodel.dart';
 import 'viewmodels/finance_viewmodel.dart';
+import 'viewmodels/loan_viewmodel.dart';
 import 'views/governance/member_approval_view.dart';
 import 'views/governance/finance_management_view.dart';
 import 'views/governance/investment_management_view.dart';
@@ -41,6 +42,7 @@ import 'views/finance/financial_reports_view.dart';
 import 'views/finance/financial_secretary_report_view.dart';
 import 'views/finance/auto_saving_config_view.dart';
 import 'views/finance/savings_targets_view.dart';
+import 'views/finance/loans_overview_view.dart';
 import 'views/support/help_screen.dart';
 import 'views/support/terms_conditions_screen.dart';
 import 'views/support/about_us_screen.dart';
@@ -70,6 +72,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => GovernanceViewModel()),
         ChangeNotifierProvider(create: (_) => NotificationViewModel()),
         ChangeNotifierProvider(create: (_) => FinanceViewModel()),
+        ChangeNotifierProvider(create: (_) => LoanViewModel()),
       ],
       child: const SeedVestApp(),
     ),
@@ -120,7 +123,9 @@ class _SeedVestAppState extends State<SeedVestApp> {
 
   String _routeForNotificationLink(String? link) {
     if (link == '/dashboard') return '/dashboard';
-    if (link != null && link.startsWith('/finance/penalties')) return '/penalties';
+    if (link != null && link.startsWith('/finance/penalties')) {
+      return '/penalties';
+    }
     if (link == '/governance/contributions') return '/governance/contributions';
     if (link == '/governance/approvals') return '/governance/approvals';
     if (link == '/governance/investments') return '/governance/investments';
@@ -333,9 +338,11 @@ class _SeedVestAppState extends State<SeedVestApp> {
             const AdminMemberRegistrationView(),
         '/finance/insights': (context) => const FinancialInsightsView(),
         '/finance/reports': (context) => const FinancialReportsView(),
-        '/finance/reports/oversight': (context) => const FinancialSecretaryReportView(),
+        '/finance/reports/oversight': (context) =>
+            const FinancialSecretaryReportView(),
         '/finance/auto-savings': (context) => const AutoSavingConfigView(),
         '/finance/targets': (context) => const SavingsTargetsView(),
+        '/finance/loans': (context) => const LoansOverviewView(),
         '/help': (context) => const HelpScreen(),
         '/terms': (context) => const TermsConditionsScreen(),
         '/about': (context) => const AboutUsScreen(),

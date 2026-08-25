@@ -10,6 +10,7 @@ import '../dashboard/member_dashboard.dart';
 import '../finance/contributions_view.dart';
 import '../finance/analytics_screen.dart';
 import '../finance/investments_view.dart';
+import '../finance/loans_overview_view.dart';
 import '../dashboard/admin_dashboard.dart';
 import '../../core/network/connectivity_service.dart';
 import '../../core/network/api_service.dart';
@@ -177,6 +178,7 @@ class _MainNavigationState extends State<MainNavigation> {
       const AnalyticsScreen(),
       const ContributionsView(),
       const InvestmentsView(),
+      const LoansOverviewView(),
     ];
 
     _titles = [
@@ -184,6 +186,7 @@ class _MainNavigationState extends State<MainNavigation> {
       'Financial Analytics',
       'My Contributions',
       'Group Investments',
+      'Loans',
     ];
   }
 
@@ -326,45 +329,47 @@ class _MainNavigationState extends State<MainNavigation> {
                       ? 'Syncing offline changes...'
                       : '$_pendingWrites offline request(s) pending sync. Tap to sync now',
                   child: IconButton(
-                    onPressed: _isSyncingPendingWrites ? null : _syncPendingWrites,
+                    onPressed:
+                        _isSyncingPendingWrites ? null : _syncPendingWrites,
                     icon: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      if (_isSyncingPendingWrites)
-                        const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      else
-                        const Icon(Icons.sync, size: 24),
-                      Positioned(
-                        right: -6,
-                        top: -6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 2),
-                          decoration: const BoxDecoration(
-                            color: Colors.orange,
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                          ),
-                          constraints: const BoxConstraints(minWidth: 18),
-                          child: Text(
-                            _pendingWrites > 99
-                                ? '99+'
-                                : _pendingWrites.toString(),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                      clipBehavior: Clip.none,
+                      children: [
+                        if (_isSyncingPendingWrites)
+                          const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          const Icon(Icons.sync, size: 24),
+                        Positioned(
+                          right: -6,
+                          top: -6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 2),
+                            decoration: const BoxDecoration(
+                              color: Colors.orange,
+                              shape: BoxShape.rectangle,
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(10)),
+                            ),
+                            constraints: const BoxConstraints(minWidth: 18),
+                            child: Text(
+                              _pendingWrites > 99
+                                  ? '99+'
+                                  : _pendingWrites.toString(),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -594,6 +599,8 @@ class _MainNavigationState extends State<MainNavigation> {
                 label: 'Finance'),
             BottomNavigationBarItem(
                 icon: Icon(Icons.trending_up), label: 'Invest'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.account_balance), label: 'Loans'),
           ],
         ),
       ),
