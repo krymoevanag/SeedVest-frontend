@@ -33,6 +33,11 @@ class GovernanceViewModel extends ChangeNotifier {
   List<dynamic> _groups = [];
   List<dynamic> get groups => _groups;
 
+  Map<String, dynamic>? _lastClosureResult;
+  Map<String, dynamic>? get lastClosureResult => _lastClosureResult;
+  String? _closureError;
+  String? get closureError => _closureError;
+
   Future<void> fetchPendingUsers() async {
     _setLoading(true);
     try {
@@ -470,6 +475,46 @@ class GovernanceViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error removing from group: $e');
       return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<Map<String, dynamic>?> closeCycle(
+    int cycleId, {
+    bool carryForwardContributions = false,
+    bool carryForwardMissed = false,
+    bool carryForwardLoans = false,
+    bool createNewCycle = true,
+    String cycleName = '',
+  }) async {
+    _setLoading(true);
+    _closureError = null;
+    _lastClosureResult = null;
+    try {
+      final payload = {
+        'carry_forward_contributions': carryForwardContributions,
+        'carry_forward_missed': carryForwardMissed,
+        'carry_forward_loans': carryForwardLoans,
+        'create_new_cycle': createNewCycle,
+        if (cycleName.trim().isNotEmpty) 'cycle_name': cycleName.trim(),
+      };
+      final response = await _apiService.closeFinancialCycle(cycleId, payload);
+      if (response.statusCode == 200) {
+        final data = response.data is Map<String, dynamic>
+            ? response.data as Map<String, dynamic>
+            : Map<String, dynamic>.from(response.data as Map);
+        _lastClosureResult = data;
+        notifyListeners();
+        return data;
+      } else {
+        _closureError = 'Failed to close cycle (${response.statusCode})';
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Error closing financial cycle: $e');
+      _closureError = e.toString();
+      return null;
     } finally {
       _setLoading(false);
     }

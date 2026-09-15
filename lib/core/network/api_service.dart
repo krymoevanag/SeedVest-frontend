@@ -939,6 +939,10 @@ class ApiService {
     });
   }
 
+  Future<Response> closeFinancialCycle(int cycleId, Map<String, dynamic> payload) async {
+    return await dio.post('finance/financial-cycles/$cycleId/close/', data: payload);
+  }
+
   Future<Response> getMonthlyContributionRecords({
     int? groupId,
     int? cycleId,
