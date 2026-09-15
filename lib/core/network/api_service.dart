@@ -873,7 +873,7 @@ class ApiService {
   }
 
   Future<Response> getAuditLogs() async {
-    return await _getWithCache('notifications/notifications/');
+    return await _getWithCache('accounts/audit-logs/');
   }
 
   Future<Response> adminAddContribution(Map<String, dynamic> data) async {

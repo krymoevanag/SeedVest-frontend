@@ -135,6 +135,43 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
                         financeVm.setSelectedGroup(value);
                       },
                     ),
+                    if (financeVm.financialCycles.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Financial Cycle",
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      DropdownButton<int?>(
+                        value: financeVm.selectedCycleId,
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        icon: const Icon(Icons.keyboard_arrow_down),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text(
+                              "All Cycles",
+                              style: TextStyle(fontSize: 14),
+                            ),
+                          ),
+                          ...financeVm.financialCycles.map((c) {
+                            return DropdownMenuItem<int?>(
+                              value: c.id,
+                              child: Text(
+                                "\${c.cycleName} (\${c.status})",
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          financeVm.setSelectedCycle(value);
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),

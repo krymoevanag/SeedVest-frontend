@@ -281,6 +281,7 @@ class FinanceViewModel extends ChangeNotifier {
     fetchAdminMemberships();
     if (groupId != null) {
       fetchAdminGroupSummary();
+      fetchFinancialCycles(groupId: groupId);
     }
     notifyListeners();
   }
