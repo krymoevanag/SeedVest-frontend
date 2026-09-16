@@ -213,14 +213,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   )
                 else if (_groups.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12.0),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'No groups available for registration right now.',
-                        style: TextStyle(color: Colors.red),
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'No groups available for registration right now.',
+                            style: TextStyle(color: Colors.red, fontSize: 13),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() => _isLoadingGroups = true);
+                            _loadGroups();
+                          },
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: const Text('Reload'),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 else
