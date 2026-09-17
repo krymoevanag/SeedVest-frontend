@@ -165,20 +165,52 @@ class NotificationViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> sendBroadcast(
-      {required String title,
-      required String message,
-      String type = 'INFO'}) async {
+  Future<bool> sendBroadcast({
+    required String title,
+    required String message,
+    String type = 'INFO',
+    int? recipientId,
+    List<int>? recipientIds,
+    String? targetRole,
+  }) async {
     _setLoading(true);
     try {
-      final response = await _apiService.broadcastNotification({
+      final Map<String, dynamic> data = {
+        'title': title,
+        'message': message,
+        'type': type,
+      };
+      if (recipientId != null) data['recipient_id'] = recipientId;
+      if (recipientIds != null) data['recipient_ids'] = recipientIds;
+      if (targetRole != null) data['target_role'] = targetRole;
+
+      final response = await _apiService.broadcastNotification(data);
+      return response.statusCode == 201;
+    } catch (e) {
+      debugPrint('Error sending broadcast: ');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> sendDirectNotification({
+    required int recipientId,
+    required String title,
+    required String message,
+    String type = 'INFO',
+  }) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.sendNotification({
+        'recipient': recipientId,
         'title': title,
         'message': message,
         'type': type,
       });
       return response.statusCode == 201;
     } catch (e) {
-      debugPrint('Error sending broadcast: $e');
+      debugPrint('Error sending direct notification: ');
       return false;
     } finally {
       _setLoading(false);
