@@ -24,6 +24,37 @@ class LoanViewModel extends ChangeNotifier {
   bool get isSubmitting => _isSubmitting;
   String? get error => _error;
 
+  // ── Filtered loan subsets ──────────────────────────────────────────────────
+  List<Loan> myLoans(int userId) =>
+      _loans.where((loan) => loan.userId == userId).toList();
+
+  List<Loan> guarantorLoans(int userId) =>
+      _loans.where((loan) => loan.isGuarantor(userId)).toList();
+
+  List<Loan> pendingGuarantorLoans(int userId) => _loans
+      .where((loan) =>
+          loan.isGuarantor(userId) && loan.status == 'PENDING_GUARANTORS')
+      .toList();
+
+  List<Loan> groupLoans() => List.unmodifiable(_loans);
+
+  // ── Metrics helpers ────────────────────────────────────────────────────────
+  double totalBorrowed(int userId) => myLoans(userId)
+      .where((loan) =>
+          loan.status == 'DISBURSED' ||
+          loan.status == 'REPAID' ||
+          loan.status == 'DEFAULTED')
+      .fold(0.0, (sum, loan) => sum + loan.amount);
+
+  double totalOutstanding(int userId) => myLoans(userId)
+      .where((loan) =>
+          loan.status == 'DISBURSED' || loan.status == 'DEFAULTED')
+      .fold(0.0, (sum, loan) => sum + loan.balanceRemaining);
+
+  int activeLoansCount(int userId) => myLoans(userId)
+      .where((loan) => loan.status == 'DISBURSED')
+      .length;
+
   Future<void> initialise() async {
     await Future.wait([fetchLoans(), fetchGroups()]);
   }

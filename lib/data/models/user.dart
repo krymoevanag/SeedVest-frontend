@@ -7,6 +7,8 @@ class User {
   final String applicationStatus;
   final bool isActive;
   final bool isSuperuser;
+  final String? firstName;
+  final String? lastName;
   final String? phoneNumber;
   final String? membershipNumber;
   final double totalSavings;
@@ -19,6 +21,8 @@ class User {
     required this.email,
     required this.fullName,
     required this.role,
+    this.firstName,
+    this.lastName,
     this.isApproved = false,
     this.applicationStatus = 'PENDING',
     this.isActive = true,
@@ -36,6 +40,8 @@ class User {
       id: json['id'],
       email: json['email'] ?? '',
       fullName: json['full_name'] ?? '',
+      firstName: json['first_name'],
+      lastName: json['last_name'],
       role: json['role'] ?? 'MEMBER',
       isApproved: json['is_approved'] ?? false,
       applicationStatus: json['application_status'] ??
@@ -56,6 +62,8 @@ class User {
       'id': id,
       'email': email,
       'full_name': fullName,
+      'first_name': firstName,
+      'last_name': lastName,
       'role': role,
       'is_approved': isApproved,
       'application_status': applicationStatus,

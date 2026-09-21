@@ -1038,6 +1038,10 @@ class ApiService {
         });
   }
 
+  Future<Response> getGroupSummary(int groupId, {int? cycleId}) async {
+    return await getAdminGroupSummary(groupId, cycleId: cycleId);
+  }
+
   Future<Response> getMemberFinancialProfile(int memberId) async {
     return await _getWithCache('finance/members/$memberId/financial-profile/');
   }

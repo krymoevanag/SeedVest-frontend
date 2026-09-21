@@ -258,7 +258,10 @@ class _MainNavigationState extends State<MainNavigation> {
         }
 
         // If we reach here, it means the second tap was within 2 seconds.
-        // We trigger a system-level pop to exit the app gracefully.
+        // Automatically logout user on exit and exit the app.
+        if (context.mounted) {
+          await context.read<UserViewModel>().logout();
+        }
         SystemNavigator.pop();
       },
       child: Scaffold(

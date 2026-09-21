@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+
 import '../../viewmodels/user_viewmodel.dart';
 import '../../core/security/biometric_service.dart';
 import '../../core/theme/colors.dart';
@@ -34,27 +35,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     final user = context.read<UserViewModel>().currentUser;
-    // Split full name potentially, but better if we had separate fields in User model.
-    // For now, assuming User model has fullName, we might just edit phone number
-    // or if we updated User model to have first/last name.
-    // Let's check User model... it has fullName.
-    // Backend serializer has first_name, last_name.
-    // We should treat fullName as read-only or split it?
-    // Let's just allow editing Phone Number for now to be safe,
-    // or try to split the name.
 
-    // Actually, let's look at the User model in Flutter.
-    // It has `fullName`.
-    // We can try to split it for the controller, but when saving we need to send first_name/last_name.
-    // Let's just add fields for First/Last Name to the Flutter User model to make this clean.
-    // But for now, to avoid breaking changes, let's just use empty strings or try to parse.
-
-    var names = (user?.fullName ?? '').split(' ');
-    String first = names.isNotEmpty ? names.first : '';
-    String last = names.length > 1 ? names.sublist(1).join(' ') : '';
-
-    _firstNameController = TextEditingController(text: first);
-    _lastNameController = TextEditingController(text: last);
+    _firstNameController = TextEditingController(
+      text: user?.firstName ?? (user?.fullName.split(' ').first ?? ''),
+    );
+    _lastNameController = TextEditingController(
+      text: user?.lastName ??
+          (user != null && user.fullName.split(' ').length > 1
+              ? user.fullName.split(' ').sublist(1).join(' ')
+              : ''),
+    );
     _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _loadBiometricSettings();
@@ -115,23 +105,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _showAvatarPicker() async {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Profile Photo',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined,
+                    color: AppColors.primary),
+                title: const Text('Take photo with camera'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined,
+                    color: AppColors.primary),
+                title: const Text('Choose from gallery'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
     final XFile? pickedFile = await _picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       maxWidth: 1000,
       maxHeight: 1000,
       imageQuality: 85,
     );
 
     if (pickedFile != null) {
-      // Check file size (1MB limit)
       final file = File(pickedFile.path);
       final bytes = await file.length();
-      if (bytes > 1 * 1024 * 1024) {
+      if (bytes > 2 * 1024 * 1024) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Image size must be less than 1MB'),
+              content: Text('Image size must be less than 2MB'),
               backgroundColor: Colors.red,
             ),
           );
@@ -139,28 +170,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      setState(() {
-        _imageFile = file;
-      });
+      setState(() => _imageFile = file);
 
-      // Automatically upload
       if (mounted) {
         final success = await context
             .read<UserViewModel>()
             .updateProfilePicture(pickedFile.path);
         if (mounted) {
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Profile picture updated!')),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to upload image'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(success
+                  ? 'Profile picture updated!'
+                  : 'Failed to upload image'),
+              backgroundColor: success ? Colors.green : Colors.red,
+            ),
+          );
         }
       }
     }
@@ -283,12 +307,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           },
                         ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Current password is required';
-                        }
-                        return null;
-                      },
+                      validator: (value) => (value == null || value.isEmpty)
+                          ? 'Current password is required'
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -296,7 +317,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       obscureText: obscureNewPassword,
                       decoration: InputDecoration(
                         labelText: 'New Password',
-                        prefixIcon: const Icon(Icons.password_outlined),
+                        prefixIcon: const Icon(Icons.lock_reset),
                         suffixIcon: IconButton(
                           icon: Icon(
                             obscureNewPassword
@@ -390,20 +411,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isLoading = userViewModel.isLoading;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('My Profile'),
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(_isEditing ? Icons.close : Icons.edit),
+            tooltip: _isEditing ? 'Cancel Edit' : 'Edit Profile',
+            icon: Icon(_isEditing ? Icons.close : Icons.edit_outlined),
             onPressed: () {
               setState(() {
                 if (_isEditing) {
-                  // Cancel editing, reset fields
-                  var names = (user?.fullName ?? '').split(' ');
-                  _firstNameController.text =
-                      names.isNotEmpty ? names.first : '';
-                  _lastNameController.text =
-                      names.length > 1 ? names.sublist(1).join(' ') : '';
+                  _firstNameController.text = user?.firstName ??
+                      (user?.fullName.split(' ').first ?? '');
+                  _lastNameController.text = user?.lastName ??
+                      (user != null && user.fullName.split(' ').length > 1
+                          ? user.fullName.split(' ').sublist(1).join(' ')
+                          : '');
                   _phoneController.text = user?.phoneNumber ?? '';
                   _emailController.text = user?.email ?? '';
                 }
@@ -417,15 +443,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Profile Header
+            // ── Avatar & Name Header ─────────────────────────────────────────
             Center(
               child: Stack(
                 children: [
                   GestureDetector(
-                    onTap: _pickImage,
+                    onTap: _showAvatarPicker,
                     child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                      radius: 48,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                       backgroundImage: _imageFile != null
                           ? FileImage(_imageFile!)
                           : (user?.profilePicture != null
@@ -438,7 +464,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ? user!.fullName[0].toUpperCase()
                                       : 'U',
                                   style: const TextStyle(
-                                    fontSize: 40,
+                                    fontSize: 38,
                                     fontWeight: FontWeight.bold,
                                     color: AppColors.primary,
                                   ),
@@ -450,11 +476,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     bottom: 0,
                     right: 0,
                     child: GestureDetector(
-                      onTap: _pickImage,
-                      child: const CircleAvatar(
-                        radius: 16,
-                        backgroundColor: AppColors.primary,
-                        child: Icon(
+                      onTap: _showAvatarPicker,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
                           Icons.camera_alt,
                           color: Colors.white,
                           size: 16,
@@ -465,20 +495,143 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
-              user?.fullName ?? 'User',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            Text(
-              user?.email ?? '',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey,
+              user?.fullName ?? 'Member',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
             ),
-            const SizedBox(height: 32),
+            if (user?.email.isNotEmpty == true)
+              Text(
+                user!.email,
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              ),
+            const SizedBox(height: 20),
 
-            // Info Details
+            // ── Membership Card ──────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.secondary, Color(0xFF1E3A5F)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.secondary.withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.badge_outlined,
+                        color: Colors.white, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Membership No.',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 11,
+                          ),
+                        ),
+                        Text(
+                          user?.membershipNumber ?? 'Pending Assignment',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: user?.isApproved == true
+                          ? Colors.green.withValues(alpha: 0.25)
+                          : Colors.orange.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: user?.isApproved == true
+                            ? Colors.green[300]!
+                            : Colors.orange[300]!,
+                      ),
+                    ),
+                    child: Text(
+                      user?.isApproved == true ? 'ACTIVE' : 'PENDING',
+                      style: TextStyle(
+                        color: user?.isApproved == true
+                            ? Colors.green[200]
+                            : Colors.orange[200],
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Quick Navigation Shortcuts ───────────────────────────────────
+            _buildSectionHeader('Financial Shortcuts'),
+            CustomCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(
+                        Icons.account_balance_wallet_outlined,
+                        color: AppColors.primary),
+                    title: const Text('My Financial Profile'),
+                    subtitle: const Text('View savings, penalties & balance'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/finance/profile'),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.account_balance,
+                        color: Color(0xFF0D47A1)),
+                    title: const Text('My Loans'),
+                    subtitle:
+                        const Text('Active loans, installments & repayments'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pushNamed(context, '/finance/loans'),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.history, color: Colors.teal),
+                    title: const Text('Savings History'),
+                    subtitle: const Text('Complete statement of transactions'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/finance/history'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Personal Info Form ───────────────────────────────────────────
             Form(
               key: _formKey,
               child: Column(
@@ -495,14 +648,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           enabled: _isEditing,
                           icon: Icons.person_outline,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         _buildTextField(
                           label: 'Last Name',
                           controller: _lastNameController,
                           enabled: _isEditing,
                           icon: Icons.person_outline,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
                         _buildTextField(
                           label: 'Phone Number',
                           controller: _phoneController,
@@ -510,239 +663,188 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: Icons.phone_outlined,
                           keyboardType: TextInputType.phone,
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildSectionHeader('Account Details'),
-                  CustomCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
+                        const SizedBox(height: 14),
                         _buildTextField(
                           label: 'Email Address',
                           controller: _emailController,
                           enabled: _isEditing,
                           icon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            final email = value?.trim() ?? '';
-                            if (email.isEmpty) return null;
+                        ),
+                      ],
+                    ),
+                  ),
 
-                            final emailPattern = RegExp(
-                              r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                            );
-                            if (!emailPattern.hasMatch(email)) {
-                              return 'Please enter a valid email address';
-                            }
-                            return null;
-                          },
-                        ),
-                        const Divider(),
-                        _buildReadOnlyField(
-                            'Membership No.',
-                            user?.membershipNumber ?? 'Pending',
-                            Icons
-                                .card_membership), // Need to add membershipNumber to User model in Flutter
-                        const Divider(),
-                        _buildReadOnlyField(
-                            'Role', user?.role ?? 'Member', Icons.security),
-                        const Divider(),
-                        _buildReadOnlyField(
-                            'Status',
-                            user?.isApproved == true
-                                ? 'Active'
-                                : 'Pending Approval',
-                            Icons.info_outline),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildSectionHeader('Security'),
-                  CustomCard(
-                    padding: const EdgeInsets.all(0),
-                    child: Column(
-                      children: [
-                        if (_biometricAvailable)
-                          SwitchListTile(
-                            contentPadding:
-                                const EdgeInsets.symmetric(horizontal: 16),
-                            title: Text('Enable $_biometricLabel Login'),
-                            subtitle: const Text(
-                              'Use biometrics for faster sign in on this device',
+                  if (_isEditing) ...[
+                    const SizedBox(height: 16),
+                    CustomButton(
+                      text: 'Save Changes',
+                      isLoading: isLoading,
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          final success = await userViewModel.updateProfile({
+                            'first_name': _firstNameController.text.trim(),
+                            'last_name': _lastNameController.text.trim(),
+                            'phone_number': _phoneController.text.trim(),
+                            if (_emailController.text.trim().isNotEmpty)
+                              'email': _emailController.text.trim(),
+                          });
+
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(success
+                                  ? 'Profile updated successfully!'
+                                  : 'Failed to update profile. Please try again.'),
+                              backgroundColor:
+                                  success ? Colors.green : Colors.red,
                             ),
-                            value: _biometricEnabled,
-                            onChanged: _toggleBiometric,
-                          ),
-                        if (_biometricAvailable) const Divider(height: 1),
-                        ListTile(
-                          leading: const Icon(Icons.password_outlined),
-                          title: const Text('Change Password'),
-                          subtitle: const Text(
-                            'Update your account password securely',
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: _showChangePasswordDialog,
-                        ),
-                      ],
+                          );
+                          if (success) setState(() => _isEditing = false);
+                        }
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildSectionHeader('Support & Legal'),
-                  CustomCard(
-                    padding: const EdgeInsets.all(0),
-                    child: Column(
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.help_outline),
-                          title: const Text('Help & Support'),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => Navigator.pushNamed(context, '/help'),
-                        ),
-                        const Divider(height: 1),
-                        ListTile(
-                          leading: const Icon(Icons.article_outlined),
-                          title: const Text('Terms & Conditions'),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => Navigator.pushNamed(context, '/terms'),
-                        ),
-                        const Divider(height: 1),
-                        ListTile(
-                          leading: const Icon(Icons.info_outline),
-                          title: const Text('About Us'),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => Navigator.pushNamed(context, '/about'),
-                        ),
-                      ],
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── Security ─────────────────────────────────────────────────────
+            _buildSectionHeader('Security'),
+            CustomCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  if (_biometricAvailable)
+                    SwitchListTile(
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16),
+                      title: Text('Enable $_biometricLabel Login'),
+                      subtitle: const Text(
+                        'Use biometrics for faster sign in on this device',
+                      ),
+                      value: _biometricEnabled,
+                      onChanged: _toggleBiometric,
                     ),
+                  if (_biometricAvailable) const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.password_outlined),
+                    title: const Text('Change Password'),
+                    subtitle: const Text(
+                      'Update your account password securely',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _showChangePasswordDialog,
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 32),
+            // ── Support & Legal ──────────────────────────────────────────────
+            _buildSectionHeader('Support & Legal'),
+            CustomCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.help_outline),
+                    title: const Text('Help & Support'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pushNamed(context, '/help'),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.article_outlined),
+                    title: const Text('Terms & Conditions'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pushNamed(context, '/terms'),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: const Text('About SeedVest'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pushNamed(context, '/about'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
 
-            if (_isEditing)
-              CustomButton(
-                text: 'Save Changes',
-                isLoading: isLoading,
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    final success = await userViewModel.updateProfile({
-                      'first_name': _firstNameController.text,
-                      'last_name': _lastNameController.text,
-                      'phone_number': _phoneController.text,
-                      if (_emailController.text.trim().isNotEmpty)
-                        'email': _emailController.text.trim(),
-                    });
+            // ── Logout Action ─────────────────────────────────────────────────
+            CustomCard(
+              padding: EdgeInsets.zero,
+              child: ListTile(
+                leading: const Icon(Icons.logout, color: Colors.red),
+                title: const Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: const Text('Sign out of your account'),
+                trailing: const Icon(Icons.chevron_right, color: Colors.red),
+                onTap: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Confirm Logout'),
+                      content: const Text(
+                          'Are you sure you want to log out of your account?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Logout'),
+                        ),
+                      ],
+                    ),
+                  );
 
-                    if (!context.mounted) return;
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Profile updated successfully!')),
-                      );
-                      setState(() => _isEditing = false);
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text(
-                                'Failed to update profile. Please try again.'),
-                            backgroundColor: Colors.red),
+                  if (confirmed == true && context.mounted) {
+                    final userViewModel = context.read<UserViewModel>();
+                    await userViewModel.logout();
+                    if (context.mounted) {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/login',
+                        (route) => false,
                       );
                     }
                   }
                 },
               ),
-
-            if (!_isEditing) ...[
-              const SizedBox(height: 24),
-              CustomButton(
-                text: 'Logout',
-                backgroundColor: Colors.red.shade50,
-                textColor: Colors.red,
-                isLoading: false,
-                onPressed: () async {
-                  final userViewModel = context.read<UserViewModel>();
-                  await userViewModel.logout();
-                  if (context.mounted) {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/login',
-                      (route) => false,
-                    );
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: _showDeleteAccountDialog,
-                child: const Text(
-                  'Delete Account',
-                  style:
-                      TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
+            ),
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  void _showDeleteAccountDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text(
-          'Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be lost.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              final userViewModel = context.read<UserViewModel>();
-              final success = await userViewModel.deleteAccount();
-              if (!mounted) return;
-              if (success) {
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/login', (route) => false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Account deleted successfully.')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text('Failed to delete account. Please try again.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12, left: 4),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-          color: AppColors.textSecondary,
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: Colors.grey[700],
+            letterSpacing: 0.3,
+          ),
         ),
       ),
     );
@@ -762,49 +864,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon),
-        border: enabled ? const OutlineInputBorder() : InputBorder.none,
-        contentPadding: enabled ? null : const EdgeInsets.all(0),
-        filled: enabled,
+        prefixIcon: Icon(icon, size: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: !enabled,
+        fillColor: enabled ? null : Colors.grey.withValues(alpha: 0.05),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
-      validator: validator ??
-          (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter $label';
-            }
-            return null;
-          },
-    );
-  }
-
-  Widget _buildReadOnlyField(String label, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.grey, size: 20),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      validator: validator,
     );
   }
 }

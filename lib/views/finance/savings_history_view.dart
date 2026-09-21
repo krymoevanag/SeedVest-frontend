@@ -320,9 +320,9 @@ class _FilterBar extends StatelessWidget {
                     onTap: () => onFilterChanged('investment')),
                 const SizedBox(width: 8),
                 _TypeChip(
-                    label: 'Repayments',
+                    label: 'Loan Repayments',
                     selected: filter == 'repayment',
-                    color: const Color(0xFF8E24AA),
+                    color: const Color(0xFF4A148C),
                     onTap: () => onFilterChanged('repayment')),
               ],
             ),
@@ -538,94 +538,194 @@ class _EntryCard extends StatelessWidget {
       formattedDate = DateFormat('MMM dd, yyyy').format(DateTime.parse(dateStr));
     } catch (_) {}
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Coloured left strip + icon
-          Container(
-            width: 52,
-            height: 70,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: config.gradient,
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(14)),
+    return InkWell(
+      onTap: () => _showDetailModal(context, config, formattedDate, amount, status, description),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(config.icon, color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: 14),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Coloured left strip + icon
+            Container(
+              width: 52,
+              height: 70,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: config.gradient,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(14)),
+              ),
+              child: Icon(config.icon, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 14),
 
-          // Description + date + status
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    description,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: AppColors.textPrimary),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    formattedDate,
-                    style: TextStyle(
-                        fontSize: 11, color: Colors.grey[500]),
-                  ),
-                  if (status.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _statusColor(status)
-                            .withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        status,
-                        style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
-                            color: _statusColor(status)),
-                      ),
+            // Description + date + status
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      description,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: AppColors.textPrimary),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                ],
+                    const SizedBox(height: 3),
+                    Text(
+                      formattedDate,
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey[500]),
+                    ),
+                    if (status.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _statusColor(status)
+                              .withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          status,
+                          style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                              color: _statusColor(status)),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Amount
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Text(
-              currency.format(amount),
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
-                color: config.gradient.first,
+            // Amount
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Text(
+                currency.format(amount),
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  color: config.gradient.first,
+                ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDetailModal(
+    BuildContext context,
+    dynamic config,
+    String formattedDate,
+    double amount,
+    String status,
+    String description,
+  ) {
+    final reference = entry['reference']?.toString();
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: config.gradient),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(config.icon, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        config.label,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        formattedDate,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  currency.format(amount),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: config.gradient.first,
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 28),
+            _detailRow('Description', description),
+            if (status.isNotEmpty) _detailRow('Status', status),
+            if (reference != null && reference.isNotEmpty)
+              _detailRow('Transaction Ref', reference),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           ),
         ],
       ),

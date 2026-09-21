@@ -272,6 +272,28 @@ class _MemberFinancialProfileViewState
                                 ),
                               ),
                               const SizedBox(height: 12),
+                              // View My Loans
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.account_balance),
+                                  label: const Text('View My Loans'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF00695C),
+                                    side: const BorderSide(
+                                        color: Color(0xFF00695C),
+                                        width: 1.5),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () =>
+                                      Navigator.pushNamed(context, '/finance/loans'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
                               // View Penalties
                               SizedBox(
                                 width: double.infinity,
