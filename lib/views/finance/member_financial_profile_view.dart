@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/network/api_service.dart';
 import '../../core/theme/colors.dart';
@@ -18,9 +19,12 @@ class MemberFinancialProfileView extends StatefulWidget {
 class _MemberFinancialProfileViewState
     extends State<MemberFinancialProfileView> {
   final ApiService _apiService = ApiService();
+  final NumberFormat _currency = NumberFormat.currency(symbol: 'KES ');
+
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
   String? _error;
+  bool _isDownloading = false;
 
   @override
   void initState() {
@@ -38,7 +42,6 @@ class _MemberFinancialProfileViewState
       });
       return;
     }
-
     setState(() {
       _isLoading = true;
       _error = null;
@@ -55,17 +58,84 @@ class _MemberFinancialProfileViewState
     }
   }
 
-  double _number(String key) => (_profile?[key] as num?)?.toDouble() ?? 0;
+  Future<void> _downloadStatement() async {
+    final memberId =
+        widget.memberId ?? context.read<UserViewModel>().currentUser?.id;
+    if (memberId == null) return;
 
-  String _money(String key) => 'KES ${_number(key).toStringAsFixed(2)}';
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _isDownloading = true);
+
+    try {
+      // Fetch memberships to get groupId
+      final memResp = await _apiService.getMemberships();
+      final memberships = memResp.data is List ? memResp.data as List : [];
+      if (memberships.isEmpty) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('No group membership found for statement.')));
+        return;
+      }
+      final groupId = memberships.first['group'] as int?;
+      if (groupId == null) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Could not determine group for statement.')));
+        return;
+      }
+
+      await _apiService.downloadMemberStatementPdf(
+          groupId: groupId, memberId: memberId);
+
+      if (mounted) {
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Statement downloaded successfully.'),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(const SnackBar(
+          content:
+              Text('Unable to download statement. Please try again later.'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+  double _number(String key) => (_profile?[key] as num?)?.toDouble() ?? 0;
 
   @override
   Widget build(BuildContext context) {
-    final member = Map<String, dynamic>.from(_profile?['member'] ?? {});
+    final member =
+        Map<String, dynamic>.from(_profile?['member'] ?? {});
+
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Financial profile'),
-        backgroundColor: AppColors.primary,
+        title: const Text('My Financial Profile'),
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          if (!_isLoading && _error == null)
+            _isDownloading
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    ),
+                  )
+                : IconButton(
+                    tooltip: 'Download Statement PDF',
+                    icon: const Icon(Icons.download_outlined),
+                    onPressed: _downloadStatement,
+                  ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -73,95 +143,402 @@ class _MemberFinancialProfileViewState
               ? _ErrorView(message: _error!, onRetry: _loadProfile)
               : RefreshIndicator(
                   onRefresh: _loadProfile,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      Text(
-                        member['name']?.toString() ?? 'Member',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      if (member['membership_number'] != null)
-                        Text(member['membership_number'].toString()),
-                      const SizedBox(height: 20),
-                      GridView.count(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        childAspectRatio: 1.55,
-                        children: [
-                          _MetricCard(
-                              'Savings', _money('total_savings'), Colors.green),
-                          _MetricCard('Penalties', _money('total_penalties'),
-                              Colors.orange),
-                          _MetricCard('Investments',
-                              _money('total_investments'), Colors.blue),
-                          _MetricCard('Outstanding',
-                              _money('outstanding_balance'), Colors.red),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      _DetailRow(
-                          'Total contributions', _money('total_contributions')),
-                      _DetailRow(
-                          'Verified repayments', _money('total_repayments')),
-                      _DetailRow(
-                          'Active loans', '${_profile?['active_loans'] ?? 0}'),
-                      _DetailRow('Overdue loans',
-                          '${_profile?['overdue_loans'] ?? 0}'),
-                      _DetailRow('Overdue balance', _money('overdue_balance')),
-                      _DetailRow('Net position', _money('net_position')),
-                    ],
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        // ── Hero header ──────────────────────────────────
+                        _ProfileHero(member: member),
+
+                        // ── Metric cards ─────────────────────────────────
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                          child: GridView.count(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 14,
+                            mainAxisSpacing: 14,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            childAspectRatio: 1.45,
+                            children: [
+                              _MetricCard(
+                                label: 'Total Savings',
+                                value: _currency
+                                    .format(_number('total_savings')),
+                                icon: Icons.savings_outlined,
+                                gradient: const [
+                                  Color(0xFF1B5E20),
+                                  Color(0xFF43A047)
+                                ],
+                              ),
+                              _MetricCard(
+                                label: 'Penalties',
+                                value: _currency
+                                    .format(_number('total_penalties')),
+                                icon: Icons.gavel_outlined,
+                                gradient: const [
+                                  Color(0xFFB71C1C),
+                                  Color(0xFFE57373)
+                                ],
+                              ),
+                              _MetricCard(
+                                label: 'Investments',
+                                value: _currency
+                                    .format(_number('total_investments')),
+                                icon: Icons.trending_up,
+                                gradient: const [
+                                  Color(0xFF0D47A1),
+                                  Color(0xFF42A5F5)
+                                ],
+                              ),
+                              _MetricCard(
+                                label: 'Outstanding',
+                                value: _currency
+                                    .format(_number('outstanding_balance')),
+                                icon: Icons.account_balance_outlined,
+                                gradient: const [
+                                  Color(0xFF7B1FA2),
+                                  Color(0xFFBA68C8)
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // ── Detail rows ──────────────────────────────────
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                          child: _DetailSection(
+                            children: [
+                              _DetailRow(
+                                label: 'Total contributions',
+                                value: _currency.format(
+                                    _number('total_contributions')),
+                              ),
+                              _DetailRow(
+                                label: 'Verified repayments',
+                                value: _currency
+                                    .format(_number('total_repayments')),
+                              ),
+                              _DetailRow(
+                                label: 'Active loans',
+                                value:
+                                    '${_profile?['active_loans'] ?? 0}',
+                              ),
+                              _DetailRow(
+                                label: 'Overdue loans',
+                                value:
+                                    '${_profile?['overdue_loans'] ?? 0}',
+                              ),
+                              _DetailRow(
+                                label: 'Overdue balance',
+                                value: _currency
+                                    .format(_number('overdue_balance')),
+                              ),
+                              _DetailRow(
+                                label: 'Net position',
+                                value: _currency
+                                    .format(_number('net_position')),
+                                isHighlighted: true,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // ── Action buttons ───────────────────────────────
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                          child: Column(
+                            children: [
+                              // View full financial history
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.history),
+                                  label: const Text(
+                                      'View Full Financial History'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    side: const BorderSide(
+                                        color: AppColors.primary, width: 1.5),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () => Navigator.pushNamed(
+                                      context, '/finance/history'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              // View Penalties
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.gavel_outlined),
+                                  label: const Text('View My Penalties'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.error,
+                                    side: BorderSide(
+                                        color: AppColors.error
+                                            .withValues(alpha: 0.7),
+                                        width: 1.5),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () =>
+                                      Navigator.pushNamed(context, '/penalties'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
     );
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard(this.label, this.value, this.color);
+// ── Hero header ──────────────────────────────────────────────────────────────
 
-  final String label;
-  final String value;
-  final Color color;
+class _ProfileHero extends StatelessWidget {
+  const _ProfileHero({required this.member});
+
+  final Map<String, dynamic> member;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.account_balance_wallet_outlined, color: color),
-            const SizedBox(height: 6),
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ],
+    final name = member['name']?.toString() ?? 'Member';
+    final membershipNumber = member['membership_number']?.toString();
+    final email = member['email']?.toString() ?? '';
+    final initials = name
+        .split(' ')
+        .where((s) => s.isNotEmpty)
+        .take(2)
+        .map((s) => s[0].toUpperCase())
+        .join();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.secondary, Color(0xFF1E3A5F)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
+      ),
+      child: Column(
+        children: [
+          // Avatar
+          Container(
+            width: 74,
+            height: 74,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.4), width: 2.5),
+            ),
+            child: Center(
+              child: Text(
+                initials,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (membershipNumber != null) ...[
+            const SizedBox(height: 4),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                membershipNumber,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 12,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+          ],
+          if (email.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              email,
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.65), fontSize: 12),
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _DetailRow extends StatelessWidget {
-  const _DetailRow(this.label, this.value);
+// ── Gradient metric card ─────────────────────────────────────────────────────
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.gradient,
+  });
 
   final String label;
   final String value;
+  final IconData icon;
+  final List<Color> gradient;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      trailing:
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: gradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: gradient.last.withValues(alpha: 0.35),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 22),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 }
+
+// ── Detail section + rows ─────────────────────────────────────────────────────
+
+class _DetailSection extends StatelessWidget {
+  const _DetailSection({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3))
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.label,
+    required this.value,
+    this.isHighlighted = false,
+  });
+
+  final String label;
+  final String value;
+  final bool isHighlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: isHighlighted
+                      ? AppColors.textPrimary
+                      : Colors.grey[700],
+                  fontWeight: isHighlighted ? FontWeight.w600 : FontWeight.normal,
+                  fontSize: 14,
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontWeight:
+                      isHighlighted ? FontWeight.w800 : FontWeight.w600,
+                  color: isHighlighted ? AppColors.primary : AppColors.textPrimary,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, indent: 16),
+      ],
+    );
+  }
+}
+
+// ── Error view ────────────────────────────────────────────────────────────────
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
@@ -175,9 +552,15 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(message),
+          Icon(Icons.error_outline, size: 56, color: Colors.grey[400]),
           const SizedBox(height: 12),
-          FilledButton(onPressed: onRetry, child: const Text('Retry')),
+          Text(message, style: TextStyle(color: Colors.grey[600])),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
         ],
       ),
     );

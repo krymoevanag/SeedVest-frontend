@@ -22,6 +22,7 @@ import 'viewmodels/dashboard_viewmodel.dart';
 import 'viewmodels/contributions_viewmodel.dart';
 import 'viewmodels/penalties_viewmodel.dart';
 import 'views/finance/penalties_view.dart';
+import 'views/finance/penalty_statement_view.dart';
 import 'viewmodels/governance_viewmodel.dart';
 import 'viewmodels/finance_viewmodel.dart';
 import 'viewmodels/loan_viewmodel.dart';
@@ -322,6 +323,10 @@ class _SeedVestAppState extends State<SeedVestApp> {
         '/activation-waiting': (context) => const ActivationWaitingScreen(),
         '/dashboard': (context) => const MainNavigation(),
         '/penalties': (context) => const PenaltiesView(),
+        '/finance/penalty-statement': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments;
+          return PenaltyStatementView(penalty: args as dynamic);
+        },
         '/governance/approvals': (context) => const MemberApprovalView(),
         '/governance/approvals/': (context) => const MemberApprovalView(),
         '/governance/pending-approvals': (context) =>

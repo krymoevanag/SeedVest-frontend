@@ -38,6 +38,7 @@ class _MemberDashboardState extends State<MemberDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Greeting row ─────────────────────────────────────────────
             Row(
               children: [
                 Expanded(
@@ -52,39 +53,90 @@ class _MemberDashboardState extends State<MemberDashboard> {
                       ),
                       Text(
                         user?.fullName ?? 'Member',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                       ),
                     ],
                   ),
                 ),
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  backgroundImage: user?.profilePicture != null
-                      ? NetworkImage(user!.profilePicture!)
-                      : null,
-                  child: user?.profilePicture == null
-                      ? const Icon(Icons.person, color: AppColors.primary)
-                      : null,
+                GestureDetector(
+                  onTap: () => Navigator.pushNamed(context, '/profile'),
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor:
+                        AppColors.primary.withValues(alpha: 0.1),
+                    backgroundImage: user?.profilePicture != null
+                        ? NetworkImage(user!.profilePicture!)
+                        : null,
+                    child: user?.profilePicture == null
+                        ? const Icon(Icons.person, color: AppColors.primary)
+                        : null,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 32),
-            Text(
-              'Grand Total Savings',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              currencyFormat.format(viewModel.totalSavings),
-              style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    color: AppColors.primary,
-                    fontSize: 36,
+
+            // ── Grand Total savings banner ────────────────────────────────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.secondary, Color(0xFF1E3A5F)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.secondary.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Grand Total Savings',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.7),
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    currencyFormat.format(viewModel.totalSavings),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(Icons.trending_up,
+                          color: Colors.green[300], size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Tap to refresh',
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // ── Quick action cards ────────────────────────────────────────
             Row(
               children: [
                 Expanded(
@@ -105,18 +157,30 @@ class _MemberDashboardState extends State<MemberDashboard> {
                     },
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _QuickActionCard(
                     title: 'Penalties',
                     icon: Icons.gavel_outlined,
-                    color: AppColors.accent,
-                    onTap: () {},
+                    color: AppColors.error,
+                    onTap: () => Navigator.pushNamed(context, '/penalties'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickActionCard(
+                    title: 'My Profile',
+                    icon: Icons.account_balance_wallet_outlined,
+                    color: const Color(0xFF0D47A1),
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/finance/profile'),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 32),
+
+            // ── Recent Activity header ───────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -125,12 +189,15 @@ class _MemberDashboardState extends State<MemberDashboard> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/finance/history'),
                   child: const Text('View All'),
                 ),
               ],
             ),
             const SizedBox(height: 16),
+
+            // ── Recent contributions ─────────────────────────────────────
             if (viewModel.isLoading)
               const Center(child: CircularProgressIndicator())
             else if (viewModel.recentContributions.isEmpty)
@@ -173,12 +240,15 @@ class _MemberDashboardState extends State<MemberDashboard> {
                             children: [
                               const Text(
                                 'Contribution',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style:
+                                    TextStyle(fontWeight: FontWeight.bold),
                               ),
                               Text(
                                 DateFormat('MMM dd, yyyy')
                                     .format(contribution.date),
-                                style: Theme.of(context).textTheme.bodySmall,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall,
                               ),
                             ],
                           ),
@@ -193,14 +263,28 @@ class _MemberDashboardState extends State<MemberDashboard> {
                                 color: AppColors.primary,
                               ),
                             ),
-                            Text(
-                              contribution.status,
-                              style: TextStyle(
-                                fontSize: 10,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
                                 color: (contribution.status == 'PAID' ||
-                                        contribution.status == 'LATE')
-                                    ? Colors.green
-                                    : Colors.orange,
+                                            contribution.status == 'LATE')
+                                        ? AppColors.success
+                                            .withValues(alpha: 0.12)
+                                        : Colors.orange
+                                            .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                contribution.status,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: (contribution.status == 'PAID' ||
+                                          contribution.status == 'LATE')
+                                      ? AppColors.success
+                                      : Colors.orange[800],
+                                ),
                               ),
                             ),
                           ],
@@ -210,12 +294,16 @@ class _MemberDashboardState extends State<MemberDashboard> {
                   );
                 },
               ),
+
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 }
+
+// ── Quick action card ────────────────────────────────────────────────────────
 
 class _QuickActionCard extends StatelessWidget {
   final String title;
@@ -235,13 +323,30 @@ class _QuickActionCard extends StatelessWidget {
     return CustomCard(
       onTap: onTap,
       color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 32),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
           const SizedBox(height: 8),
           Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
+              color: AppColors.textPrimary,
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
