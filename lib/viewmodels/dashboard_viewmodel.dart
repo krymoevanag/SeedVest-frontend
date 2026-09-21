@@ -37,42 +37,55 @@ class DashboardViewModel extends ChangeNotifier {
   Future<void> fetchDashboardData({int? userId}) async {
     _setLoading(true);
     _error = null;
+
+    int? resolvedUserId = userId;
+
     try {
-      final futures = <Future>[
-        _apiService.getContributions(),
-      ];
-
-      if (userId != null) {
-        futures.add(_apiService.getMemberSavingsHistory(userId));
+      // If userId wasn't provided, attempt to resolve from profile
+      if (resolvedUserId == null) {
+        try {
+          final profileResp = await _apiService.getProfile();
+          if (profileResp.statusCode == 200 && profileResp.data is Map) {
+            resolvedUserId = profileResp.data['id'] as int?;
+          }
+        } catch (_) {}
       }
 
-      // Also attempt to fetch memberships to resolve group balance
-      futures.add(_fetchGroupSummary());
+      // Fetch contributions
+      try {
+        final contribResp = await _apiService.getContributions();
+        if (contribResp.statusCode == 200 && contribResp.data is List) {
+          final List data = contribResp.data;
+          _recentContributions =
+              data.map((e) => Contribution.fromJson(e)).toList();
 
-      final results = await Future.wait(futures);
-
-      // Handle contributions response
-      final contribResp = results[0];
-      if (contribResp.statusCode == 200) {
-        final List data = contribResp.data;
-        _recentContributions =
-            data.map((e) => Contribution.fromJson(e)).toList();
-
-        _totalSavings = _recentContributions
-            .where((c) => c.status == 'PAID' || c.status == 'LATE')
-            .fold(0.0, (sum, item) => sum + item.amount);
+          _totalSavings = _recentContributions
+              .where((c) => c.status == 'PAID' || c.status == 'LATE')
+              .fold(0.0, (sum, item) => sum + item.amount);
+        }
+      } catch (e) {
+        debugPrint('Error loading contributions for dashboard: $e');
       }
 
-      // Handle recent activities response if fetched
-      if (userId != null && results.length > 1 && results[1].statusCode == 200) {
-        final dynamic histData = results[1].data;
-        if (histData is List) {
-          _recentActivities = histData
-              .take(5)
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList();
+      // Fetch multi-type savings/activity history
+      if (resolvedUserId != null) {
+        try {
+          final histResp =
+              await _apiService.getMemberSavingsHistory(resolvedUserId);
+          if (histResp.statusCode == 200 && histResp.data is List) {
+            final dynamic histData = histResp.data;
+            _recentActivities = histData
+                .take(5)
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+          }
+        } catch (e) {
+          debugPrint('Error loading member savings history: $e');
         }
       }
+
+      // Fetch group summary
+      await _fetchGroupSummary();
     } catch (e) {
       _error = 'Failed to load dashboard data';
       debugPrint('Error fetching dashboard: $e');
@@ -96,10 +109,12 @@ class DashboardViewModel extends ChangeNotifier {
             final data = Map<String, dynamic>.from(sumResp.data);
             _groupName = data['group_name']?.toString() ?? _groupName;
             final stats = Map<String, dynamic>.from(data['stats'] ?? {});
-            _groupBalance = (stats['group_balance'] as num?)?.toDouble() ??
-                (stats['total_savings'] as num?)?.toDouble() ??
+            _groupBalance = double.tryParse(
+                    (stats['group_balance'] ?? stats['total_savings'] ?? 0)
+                        .toString()) ??
                 0.0;
-            _groupMemberCount = (stats['member_count'] as num?)?.toInt() ?? 0;
+            _groupMemberCount =
+                int.tryParse((stats['member_count'] ?? 0).toString()) ?? 0;
           }
         }
       }

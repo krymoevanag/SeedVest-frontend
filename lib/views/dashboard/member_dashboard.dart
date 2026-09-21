@@ -479,7 +479,7 @@ class _ActivityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final type = activity['type']?.toString().toLowerCase() ?? 'contribution';
-    final amount = (activity['amount'] as num?)?.toDouble() ?? 0.0;
+    final amount = double.tryParse(activity['amount']?.toString() ?? '0') ?? 0.0;
     final dateStr = activity['date']?.toString() ?? '';
     final description = activity['description']?.toString() ?? '';
     final status = activity['status']?.toString() ?? '';

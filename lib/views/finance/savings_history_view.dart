@@ -67,8 +67,11 @@ class _SavingsHistoryViewState extends State<SavingsHistoryView> {
     }
   }
 
-  double get _totalAmount =>
-      _entries.fold(0.0, (s, e) => s + ((e['amount'] as num?)?.toDouble() ?? 0));
+  double get _totalAmount => _entries.fold(
+      0.0,
+      (s, e) =>
+          s +
+          (double.tryParse(e['amount']?.toString() ?? '0') ?? 0.0));
 
   Future<void> _pickDate({required bool isStart}) async {
     final now = DateTime.now();
@@ -527,7 +530,8 @@ class _EntryCard extends StatelessWidget {
           gradient: [const Color(0xFF455A64), const Color(0xFF78909C)],
           label: 'Activity',
         );
-    final amount = (entry['amount'] as num?)?.toDouble() ?? 0;
+    final amount =
+        double.tryParse(entry['amount']?.toString() ?? '0') ?? 0.0;
     final status = entry['status']?.toString() ?? '';
     final description =
         entry['description']?.toString() ?? config.label;
