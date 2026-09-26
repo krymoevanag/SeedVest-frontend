@@ -33,9 +33,26 @@ class _SavingsHistoryViewState extends State<SavingsHistoryView> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadHistory());
   }
 
+  Future<int?> _resolveMemberId() async {
+    if (widget.memberId != null) return widget.memberId;
+
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    if (routeArgs is int) return routeArgs;
+    if (routeArgs is Map) {
+      final value = routeArgs['memberId'] ?? routeArgs['userId'];
+      if (value is int) return value;
+    }
+
+    final currentUser = context.read<UserViewModel>().currentUser;
+    if (currentUser != null) return currentUser.id;
+
+    await context.read<UserViewModel>().fetchProfile();
+    if (!mounted) return null;
+    return context.read<UserViewModel>().currentUser?.id;
+  }
+
   Future<void> _loadHistory() async {
-    final memberId =
-        widget.memberId ?? context.read<UserViewModel>().currentUser?.id;
+    final memberId = await _resolveMemberId();
     if (memberId == null) {
       setState(() {
         _isLoading = false;

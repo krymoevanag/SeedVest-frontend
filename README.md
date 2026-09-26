@@ -1,55 +1,51 @@
 # SeedVest Mobile
 
-A premium micro-investment and savings management application built with Flutter.
+The mobile application is the Flutter client for SeedVest and provides access to the platform’s group, finance, profile, and notification workflows.
 
-## ✨ Features
+## Core mobile capabilities
 
-- **🔒 Secure Session Termination**: Immediate logout with server-side token blacklisting.
-- **⏲️ Inactivity Auto-Logout**: Automatic logout after 10 minutes of inactivity with a 60-second warning countdown.
-- **☝️ Biometric Authentication**: Login securely using Fingerprint or Face ID.
-- **📊 Financial Analytics**: Track your contributions and group investments with real-time insights.
-- **🔔 Notification Center**: Stay updated with group broadcasts, contribution approvals, and system alerts.
-- **💸 Contribution Management**: Propose and track contributions via M-Pesa or automated bank transfers.
+- Member authentication and session persistence
+- Biometric login and local security controls
+- Group dashboard and membership experience
+- Contribution, loan, and repayment tracking
+- Savings history and member financial profile views
+- Statement PDF download for member financial reporting
+- Notification center and account settings
 
-## 🛠️ Tech Stack
+## Tech stack
 
-- **Framework**: Flutter
-- **State Management**: Provider
-- **Networking**: Dio (with JWT interceptors)
-- **Local Storage**: Flutter Secure Storage & Cache Service
-- **Deep Linking**: AppLinks for password resets and activation.
+- Flutter
+- Provider state management
+- Dio for networking
+- Flutter Secure Storage for session data
+- App links and platform deep linking support
 
-## 🚀 Getting Started
+## Getting started
 
-1. **Clone the repository**
-2. **Setup Environment**:
-   Create a `.env` file in the root directory:
-   ```env
-   API_URL=https://your-api-url.com/api/
-   ```
-3. **Install Dependencies**:
-   ```bash
-   flutter pub get
-   ```
-4. **Configure Firebase API keys**:
-   Firebase client API keys are supplied at build time and are not stored in
-   the repository. Read them from the Firebase project settings, restrict
-   them to the required apps and APIs, then pass the matching key for the
-   platform being built:
-   ```bash
-   flutter run \
-     --dart-define=FIREBASE_ANDROID_API_KEY=your-android-api-key
-   ```
-   Use `FIREBASE_WEB_API_KEY`, `FIREBASE_IOS_API_KEY`,
-   `FIREBASE_MACOS_API_KEY`, or `FIREBASE_WINDOWS_API_KEY` for those targets.
-5. **Run the App**:
-   ```bash
-   flutter run
-   ```
+```bash
+cd seedvest_mobile
+flutter pub get
+flutter run
+```
 
-## 🔐 Security Information
+The app expects the backend API base URL to be configured through the app config layer and platform build definitions.
 
-The application implements a robust security layer:
-- **Sensitive Data**: All authentication tokens are stored in encrypted system storage.
-- **Session Lifecycle**: Sessions are strictly managed both locally and on the server. Inactivity is monitored globally, and the `InactivityService` ensures that the app is locked down if left idle.
-- **Navigation Safety**: Navigation history is purged upon logout to prevent backward access to protected routes.
+## Financial profile flow
+
+The app currently includes a member financial profile screen and API client methods that consume backend endpoints such as:
+
+- `finance/members/<member_id>/financial-profile/`
+- `finance/members/<member_id>/savings-history/`
+- `finance/reports/member-statement-pdf/`
+
+This is the mobile-side contract for the financial profile module already implemented on the backend.
+
+## Security notes
+
+- Access tokens are stored securely.
+- Session timeout and logout handling are enforced in the app lifecycle.
+- Sensitive finance screens must keep their API access aligned with the backend permission rules.
+
+## Notes for contributors
+
+When changing finance payloads or member profile data, ensure the API serializer contract and Flutter model parsing remain aligned. The app relies on stable response keys and permissions to render accurate profile, history, and report data.

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 import '../../viewmodels/user_viewmodel.dart';
+import '../../data/models/user.dart';
 import '../../core/security/biometric_service.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_button.dart';
@@ -31,6 +32,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _biometricEnabled = false;
   String _biometricLabel = 'Biometrics';
 
+  // Track the last user we synced controllers from to avoid redundant updates.
+  User? _syncedUser;
+
   @override
   void initState() {
     super.initState();
@@ -47,7 +51,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
+    _syncedUser = user;
     _loadBiometricSettings();
+
+    // Refresh profile from API so the screen never shows stale/blank data.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<UserViewModel>().fetchProfile();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Keep text controllers in sync whenever the UserViewModel notifies a
+    // change (e.g., after fetchProfile() completes), but only when not editing
+    // so we don't clobber the user's in-progress edits.
+    if (!_isEditing) {
+      final user = context.read<UserViewModel>().currentUser;
+      if (user != null && user != _syncedUser) {
+        _firstNameController.text =
+            user.firstName ?? (user.fullName.split(' ').first);
+        _lastNameController.text = user.lastName ??
+            (user.fullName.split(' ').length > 1
+                ? user.fullName.split(' ').sublist(1).join(' ')
+                : '');
+        _phoneController.text = user.phoneNumber ?? '';
+        _emailController.text = user.email;
+        _syncedUser = user;
+      }
+    }
   }
 
   @override

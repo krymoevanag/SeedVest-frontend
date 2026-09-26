@@ -351,8 +351,18 @@ class _SeedVestAppState extends State<SeedVestApp> {
         '/finance/auto-savings': (context) => const AutoSavingConfigView(),
         '/finance/targets': (context) => const SavingsTargetsView(),
         '/finance/loans': (context) => const LoansOverviewView(),
-        '/finance/profile': (context) => const MemberFinancialProfileView(),
-        '/finance/history': (context) => const SavingsHistoryView(),
+        '/finance/profile': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          return MemberFinancialProfileView(
+            memberId: args is int ? args : null,
+          );
+        },
+        '/finance/history': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          return SavingsHistoryView(
+            memberId: args is int ? args : null,
+          );
+        },
         '/finance/loan-dashboard': (context) => const AdminLoanDashboardView(),
         '/help': (context) => const HelpScreen(),
         '/terms': (context) => const TermsConditionsScreen(),
