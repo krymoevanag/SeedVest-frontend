@@ -201,8 +201,8 @@ class _AuditLogCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: Colors.grey.shade200, width: 0.8),
+                        border:
+                            Border.all(color: Colors.grey.shade200, width: 0.8),
                       ),
                       child: Text(
                         log.notes,
