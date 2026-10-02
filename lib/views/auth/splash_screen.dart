@@ -27,6 +27,15 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
+    // Check if this is a first-time installation
+    final isFirstTime = await _apiService.isFirstTimeInstallation();
+    if (isFirstTime) {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/onboarding');
+        return;
+      }
+    }
+
     final biometricEnabled = await _apiService.isBiometricEnabled();
     final hasRefreshToken = await _apiService.hasRefreshToken();
     final canAuthenticate = await _biometricService.canAuthenticate();

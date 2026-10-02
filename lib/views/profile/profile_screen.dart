@@ -10,6 +10,7 @@ import '../../core/security/biometric_service.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_card.dart';
+import '../widgets/exit_app_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -805,56 +806,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── Logout Action ─────────────────────────────────────────────────
+            // ── Logout & Exit Actions ─────────────────────────────────────────
             CustomCard(
               padding: EdgeInsets.zero,
-              child: ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
-                title: const Text(
-                  'Logout',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: const Text('Sign out of your account'),
-                trailing: const Icon(Icons.chevron_right, color: Colors.red),
-                onTap: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Confirm Logout'),
-                      content: const Text(
-                          'Are you sure you want to log out of your account?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('Cancel'),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('Logout'),
-                        ),
-                      ],
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: Colors.orange),
+                    title: const Text(
+                      'Logout',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  );
-
-                  if (confirmed == true && context.mounted) {
-                    final userViewModel = context.read<UserViewModel>();
-                    await userViewModel.logout();
-                    if (context.mounted) {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/login',
-                        (route) => false,
+                    subtitle: const Text('Sign out of your account'),
+                    trailing: const Icon(Icons.chevron_right, color: Colors.orange),
+                    onTap: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Confirm Logout'),
+                          content: const Text(
+                              'Are you sure you want to log out of your account?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange.shade800,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Logout'),
+                            ),
+                          ],
+                        ),
                       );
-                    }
-                  }
-                },
+
+                      if (confirmed == true && context.mounted) {
+                        final userViewModel = context.read<UserViewModel>();
+                        await userViewModel.logout();
+                        if (context.mounted) {
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
+                            '/login',
+                            (route) => false,
+                          );
+                        }
+                      }
+                    },
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.power_settings_new_rounded, color: Colors.red),
+                    title: const Text(
+                      'Exit App',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: const Text('Logout and close the SeedVest application'),
+                    trailing: const Icon(Icons.chevron_right, color: Colors.red),
+                    onTap: () {
+                      showExitAppDialog(context);
+                    },
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 32),

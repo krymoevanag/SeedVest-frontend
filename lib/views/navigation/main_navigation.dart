@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 import '../../core/theme/colors.dart';
@@ -14,6 +13,7 @@ import '../finance/loans_overview_view.dart';
 import '../dashboard/admin_dashboard.dart';
 import '../../core/network/connectivity_service.dart';
 import '../../core/network/api_service.dart';
+import '../widgets/exit_app_dialog.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -258,11 +258,10 @@ class _MainNavigationState extends State<MainNavigation> {
         }
 
         // If we reach here, it means the second tap was within 2 seconds.
-        // Automatically logout user on exit and exit the app.
+        // Display the Exit Application confirmation dialog
         if (context.mounted) {
-          await context.read<UserViewModel>().logout();
+          showExitAppDialog(context);
         }
-        SystemNavigator.pop();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -564,9 +563,8 @@ class _MainNavigationState extends State<MainNavigation> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.logout, color: Colors.red),
-                title:
-                    const Text('Logout', style: TextStyle(color: Colors.red)),
+                leading: const Icon(Icons.logout, color: Colors.orange),
+                title: const Text('Logout', style: TextStyle(color: Colors.orange)),
                 onTap: () async {
                   final userViewModel = context.read<UserViewModel>();
                   await userViewModel.logout();
@@ -577,6 +575,14 @@ class _MainNavigationState extends State<MainNavigation> {
                       (route) => false,
                     );
                   }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.power_settings_new_rounded, color: Colors.red),
+                title: const Text('Exit App', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(context);
+                  showExitAppDialog(context);
                 },
               ),
             ],

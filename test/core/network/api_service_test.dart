@@ -1,18 +1,35 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:seedvest_mobile/core/cache/cache_service.dart';
 import 'package:seedvest_mobile/core/network/api_service.dart';
 
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+
+    const channel = MethodChannel('dev.fluttercommunity.plus/connectivity');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+      if (methodCall.method == 'check') {
+        return ['none'];
+      }
+      return null;
+    });
+
+    final tempDir = Directory.systemTemp.createTempSync('hive_test');
+    Hive.init(tempDir.path);
+    await Hive.openBox('app_cache');
     await dotenv.load(fileName: '.env');
-    await CacheService.init();
+    dotenv.env['ENABLE_OFFLINE_MODE'] = 'true';
   });
 
   group('ApiService Tests', () {
@@ -20,6 +37,7 @@ void main() {
 
     setUp(() async {
       FlutterSecureStorage.setMockInitialValues({});
+      SharedPreferences.setMockInitialValues({});
       apiService = ApiService();
       await CacheService().clearCache();
     });

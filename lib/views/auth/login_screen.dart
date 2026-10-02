@@ -1,4 +1,4 @@
-// lib/views/auth/login_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
@@ -29,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _canUseBiometricLogin = false;
   String _biometricLabel = 'Biometrics';
   DateTime? _lastBackPressed;
+  Timer? _delayTimer;
 
   @override
   void initState() {
@@ -55,6 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _delayTimer?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -161,13 +163,39 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     setState(() => _isLoading = true);
+
+    // Timer to notify user if server takes long to respond (e.g. > 20s)
+    _delayTimer?.cancel();
+    _delayTimer = Timer(const Duration(seconds: 20), () {
+      if (_isLoading && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Server is taking longer than expected to respond...',
+            ),
+            backgroundColor: Colors.orange.shade800,
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                _handleLogin();
+              },
+            ),
+          ),
+        );
+      }
+    });
 
     try {
       final response = await _apiService.login(
         _emailController.text.trim().toLowerCase(),
         _passwordController.text,
       );
+      _delayTimer?.cancel();
+
       final isOfflineLogin =
           response.data is Map && response.data['offline_login'] == true;
 
@@ -204,6 +232,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on DioException catch (e) {
+      _delayTimer?.cancel();
       if (!mounted) return;
 
       String errorMessage = "An error occurred. Please try again.";
@@ -218,8 +247,7 @@ class _LoginScreenState extends State<LoginScreen> {
           errorMessage = e.error.toString();
         } else if (deviceOnline) {
           errorMessage =
-              "You're connected to the internet, but SeedVest can't reach the "
-              "server right now. Please try again in a few minutes.";
+              "SeedVest server took too long to respond. You can retry now.";
         } else {
           errorMessage =
               "You appear to be offline. Please check your internet "
@@ -265,18 +293,30 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(
           content: Text(errorMessage),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
+          duration: const Duration(seconds: 6),
+          action: SnackBarAction(
+            label: 'Retry',
+            textColor: Colors.white,
+            onPressed: () => _handleLogin(),
+          ),
         ),
       );
     } catch (e) {
+      _delayTimer?.cancel();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("An unexpected error occurred."),
+        SnackBar(
+          content: const Text("An unexpected error occurred."),
           backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Retry',
+            textColor: Colors.white,
+            onPressed: () => _handleLogin(),
+          ),
         ),
       );
     } finally {
+      _delayTimer?.cancel();
       if (mounted) setState(() => _isLoading = false);
     }
   }

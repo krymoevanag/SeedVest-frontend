@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/network/api_service.dart';
 import '../../core/theme/colors.dart';
 import '../widgets/custom_button.dart';
 
@@ -99,9 +100,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   const SizedBox(height: 32),
                   CustomButton(
                     text: _currentPage == _data.length - 1 ? 'Get Started' : 'Next',
-                    onPressed: () {
+                    onPressed: () async {
                       if (_currentPage == _data.length - 1) {
-                        Navigator.pushReplacementNamed(context, '/login');
+                        await ApiService().setFirstTimeInstallationCompleted();
+                        if (context.mounted) {
+                          Navigator.pushReplacementNamed(context, '/login');
+                        }
                       } else {
                         _pageController.nextPage(
                           duration: const Duration(milliseconds: 300),

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/config.dart';
 import '../cache/cache_service.dart';
 import 'connectivity_service.dart';
@@ -167,14 +168,57 @@ class ApiService {
     return null;
   }
 
-  Future<void> _clearSessionStorage({bool clearBiometric = false}) async {
+  static const String _firstTimeInstallationKey = 'is_first_time_installation';
+
+  Future<bool> isFirstTimeInstallation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_firstTimeInstallationKey) ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<void> setFirstTimeInstallationCompleted() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_firstTimeInstallationKey, false);
+    } catch (e) {
+      // Ignore prefs error
+    }
+  }
+
+  Future<void> _clearSessionStorage({
+    bool clearBiometric = false,
+    bool clearOfflineCredentials = false,
+  }) async {
     await storage.delete(key: _accessTokenKey);
     await storage.delete(key: _refreshTokenKey);
     await storage.delete(key: _userRoleKey);
     await storage.delete(key: _userIdKey);
 
+    if (clearOfflineCredentials) {
+      await storage.delete(key: _offlineLoginEmailKey);
+      await storage.delete(key: _offlineLoginPasswordHashKey);
+      await storage.delete(key: _offlineUserProfileKey);
+    }
+
     if (clearBiometric) {
       await storage.delete(key: _biometricEnabledKey);
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('is_logged_in');
+      await prefs.remove('access_token');
+      await prefs.remove('refresh_token');
+      await prefs.remove('user_email');
+      await prefs.remove('user_role');
+      await prefs.remove('user_id');
+      await prefs.remove('session_active');
+      await prefs.remove('last_login_timestamp');
+    } catch (_) {
+      // Ignore SharedPreferences errors
     }
   }
 
@@ -387,6 +431,24 @@ class ApiService {
         if (AppConfig.isOfflineModeEnabled) {
           await _storeOfflineCredentials(email, password);
         }
+
+        // Persist session markers in SharedPreferences
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('is_logged_in', true);
+          await prefs.setString('user_email', email);
+          if (response.data['access'] != null) {
+            await prefs.setString('access_token', response.data['access']);
+          }
+          if (response.data['refresh'] != null) {
+            await prefs.setString('refresh_token', response.data['refresh']);
+          }
+          if (response.data['role'] != null) {
+            await prefs.setString('user_role', response.data['role']);
+          }
+          await prefs.setString(
+              'last_login_timestamp', DateTime.now().toIso8601String());
+        } catch (_) {}
       }
 
       return response;
@@ -577,7 +639,10 @@ class ApiService {
     } catch (_) {
       // Ignore logout errors
     } finally {
-      await _clearSessionStorage(clearBiometric: true);
+      await _clearSessionStorage(
+        clearBiometric: true,
+        clearOfflineCredentials: true,
+      );
       await _cacheService.clearCache();
     }
     return Response(
