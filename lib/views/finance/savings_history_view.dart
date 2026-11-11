@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/network/api_service.dart';
+import '../../core/services/file_download_service.dart';
 import '../../core/theme/colors.dart';
 import '../../viewmodels/user_viewmodel.dart';
 
@@ -120,6 +121,48 @@ class _SavingsHistoryViewState extends State<SavingsHistoryView> {
     _loadHistory();
   }
 
+  Future<void> _exportCsv() async {
+    if (_entries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No transactions to export.')),
+      );
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final buffer = StringBuffer();
+      buffer.writeln('Date,Type,Description,Reference,Amount (KES),Status');
+      for (final e in _entries) {
+        final date = e['date'] ?? e['created_at'] ?? '';
+        final type = e['type'] ?? '';
+        final description = (e['description'] ?? '').toString().replaceAll(',', ';');
+        final ref = (e['reference'] ?? '').toString();
+        final amount = e['amount']?.toString() ?? '0';
+        final status = e['status'] ?? '';
+        buffer.writeln('"$date","$type","$description","$ref",$amount,"$status"');
+      }
+      final timestamp = dateFormat.format(DateTime.now());
+      final fileName = 'savings_history_$timestamp.csv';
+      final file = await FileDownloadService.instance.saveTextFile(
+        fileName: fileName,
+        content: buffer.toString(),
+      );
+      if (!mounted) return;
+      FileDownloadService.instance.showDownloadCompleteSheet(
+        context,
+        filePath: file.path,
+        fileName: fileName,
+        fileTypeLabel: 'Savings History CSV',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Failed to export history. Please try again.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasFilters =
@@ -139,6 +182,11 @@ class _SavingsHistoryViewState extends State<SavingsHistoryView> {
               child: const Text('Clear',
                   style: TextStyle(color: Colors.orange, fontSize: 13)),
             ),
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            tooltip: 'Export CSV',
+            onPressed: _entries.isEmpty ? null : _exportCsv,
+          ),
         ],
       ),
       body: _isLoading

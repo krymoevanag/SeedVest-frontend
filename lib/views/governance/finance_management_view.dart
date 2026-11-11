@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/services/file_download_service.dart';
 import '../../core/theme/colors.dart';
 import '../../data/models/contribution.dart';
 import '../../viewmodels/finance_viewmodel.dart';
@@ -47,6 +48,56 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
     super.dispose();
   }
 
+  /// Export the currently-loaded admin membership roster as a CSV file.
+  Future<void> _exportRosterCsv() async {
+    final financeVm = context.read<FinanceViewModel>();
+    final memberships = financeVm.adminMemberships;
+    if (memberships.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No members to export.')),
+      );
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final buffer = StringBuffer();
+      buffer.writeln(
+        'Membership #,Member Name,Email,Current Savings (KSH),Unpaid Penalties (KSH),Outstanding (KSH)',
+      );
+      for (final raw in memberships) {
+        final m = Membership.fromJson(Map<String, dynamic>.from(raw));
+        final name = m.fullName.replaceAll(',', ';');
+        final email = m.email.replaceAll(',', ';');
+        buffer.writeln(
+          '"${m.membershipNumber ?? ""}","$name","$email",'
+          '${m.savingsBalance},${m.penaltiesBalance},${m.outstandingTotal}',
+        );
+      }
+      final timestamp = dateFormat.format(DateTime.now());
+      final fileName = 'member_roster_$timestamp.csv';
+      final file = await FileDownloadService.instance.saveTextFile(
+        fileName: fileName,
+        content: buffer.toString(),
+      );
+      if (!mounted) return;
+      FileDownloadService.instance.showDownloadCompleteSheet(
+        context,
+        filePath: file.path,
+        fileName: fileName,
+        fileTypeLabel: 'Member Roster CSV',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to export roster. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,6 +106,13 @@ class _FinanceManagementViewState extends State<FinanceManagementView> {
         title: const Text('Financial Oversight'),
         elevation: 0,
         actions: [
+          Consumer<FinanceViewModel>(
+            builder: (context, financeVm, _) => IconButton(
+              icon: const Icon(Icons.download_outlined),
+              tooltip: 'Export Member Roster CSV',
+              onPressed: financeVm.adminMemberships.isEmpty ? null : _exportRosterCsv,
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {

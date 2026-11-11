@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../../core/services/file_download_service.dart';
 import '../../core/theme/colors.dart';
 import '../../viewmodels/penalties_viewmodel.dart';
 import '../../viewmodels/user_viewmodel.dart';
@@ -24,6 +25,46 @@ class _PenaltiesViewState extends State<PenaltiesView> {
     });
   }
 
+  Future<void> _exportCsv(List<Penalty> penalties) async {
+    if (penalties.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No penalties to export.')),
+      );
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final buffer = StringBuffer();
+      buffer.writeln('Member,Group,Amount (KES),Reason,Issued Date,Status');
+      for (final p in penalties) {
+        final member = p.userName ?? 'Member #${p.userId}';
+        final group = p.groupName ?? '';
+        final reason = p.reason.replaceAll(',', ';');
+        final issuedDate = dateFormat.format(p.date);
+        buffer.writeln('"$member","$group",${p.amount},"$reason","$issuedDate","${p.status}"');
+      }
+      final timestamp = dateFormat.format(DateTime.now());
+      final fileName = 'penalties_$timestamp.csv';
+      final file = await FileDownloadService.instance.saveTextFile(
+        fileName: fileName,
+        content: buffer.toString(),
+      );
+      if (!mounted) return;
+      FileDownloadService.instance.showDownloadCompleteSheet(
+        context,
+        filePath: file.path,
+        fileName: fileName,
+        fileTypeLabel: 'Penalties CSV',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Failed to export penalties. Please try again.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<PenaltiesViewModel>();
@@ -44,6 +85,14 @@ class _PenaltiesViewState extends State<PenaltiesView> {
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          if (hasItems)
+            IconButton(
+              icon: const Icon(Icons.download_outlined),
+              tooltip: 'Export Penalties CSV',
+              onPressed: () => _exportCsv(viewModel.penalties),
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: viewModel.fetchPenalties,

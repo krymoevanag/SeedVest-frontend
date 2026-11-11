@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/network/api_service.dart';
+import '../../core/services/file_download_service.dart';
 import '../../core/theme/colors.dart';
 import '../../data/models/member_financial_profile.dart';
 import '../../viewmodels/user_viewmodel.dart';
@@ -121,22 +122,37 @@ class _MemberFinancialProfileViewState
         return;
       }
 
-      await _apiService.downloadMemberStatementPdf(
+      final response = await _apiService.downloadMemberStatementPdf(
         groupId: groupId,
         memberId: memberId,
       );
 
+      if (!mounted) return;
+
+      final bytes = response.data;
+      if (bytes == null) throw Exception('Empty response');
+      final List<int> byteList = bytes is List<int> ? bytes : List<int>.from(bytes as Iterable);
+
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final fileName = 'statement_member_${memberId}_$timestamp.pdf';
+
+      final file = await FileDownloadService.instance.saveBinaryFile(
+        fileName: fileName,
+        bytes: byteList,
+      );
+
       if (mounted) {
-        messenger.showSnackBar(const SnackBar(
-          content: Text('Statement downloaded successfully.'),
-          backgroundColor: Colors.green,
-        ));
+        FileDownloadService.instance.showDownloadCompleteSheet(
+          context,
+          filePath: file.path,
+          fileName: fileName,
+          fileTypeLabel: 'Member Statement (PDF)',
+        );
       }
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(const SnackBar(
-          content:
-              Text('Unable to download statement. Please try again later.'),
+          content: Text('Unable to download statement. Please try again later.'),
           backgroundColor: Colors.red,
         ));
       }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/network/api_service.dart';
+import '../../core/services/file_download_service.dart';
 import '../../viewmodels/finance_viewmodel.dart';
 import '../../viewmodels/governance_viewmodel.dart';
 import '../../core/theme/colors.dart';
@@ -87,9 +88,8 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
   }
 
   Future<void> _exportCsv() async {
-    if (_selectedGroupId == null) {
-      return;
-    }
+    if (_selectedGroupId == null) return;
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final response = await _apiService.exportMonthlyContributionRecords(
         groupId: _selectedGroupId,
@@ -97,26 +97,64 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
         month: DateTime(_selectedYear, _selectedMonth, 1),
       );
       final csv = response.data?.toString() ?? '';
-      final rows = csv
-          .split('\n')
-          .where((line) => line.trim().isNotEmpty)
-          .length;
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('CSV export fetched (${rows > 0 ? rows - 1 : 0} rows).'),
-          backgroundColor: Colors.green,
-        ),
+      if (!mounted) return;
+
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final fileName = 'contributions_${_selectedYear}_${_selectedMonth.toString().padLeft(2, '0')}_$timestamp.csv';
+      final file = await FileDownloadService.instance.saveTextFile(
+        fileName: fileName,
+        content: csv,
+      );
+      if (!mounted) return;
+      FileDownloadService.instance.showDownloadCompleteSheet(
+        context,
+        filePath: file.path,
+        fileName: fileName,
+        fileTypeLabel: 'Contributions CSV',
       );
     } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Failed to export monthly contributions CSV.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _exportExcel() async {
+    if (_selectedCycleId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a cycle to export the Excel ledger.')),
+      );
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final response = await _apiService.downloadFinancialCycleExcel(_selectedCycleId!);
+      if (!mounted) return;
+      final bytes = response.data;
+      if (bytes == null) throw Exception('Empty response');
+      final timestamp = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final fileName = 'cycle_ledger_${_selectedCycleId}_$timestamp.xlsx';
+      final List<int> byteList = bytes is List<int> ? bytes : List<int>.from(bytes as Iterable);
+      final file = await FileDownloadService.instance.saveBinaryFile(
+        fileName: fileName,
+        bytes: byteList,
+      );
+      if (!mounted) return;
+      FileDownloadService.instance.showDownloadCompleteSheet(
+        context,
+        filePath: file.path,
+        fileName: fileName,
+        fileTypeLabel: 'Cycle Ledger (Excel)',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Failed to export Excel ledger. Please try again.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -383,11 +421,22 @@ class _FinancialReportsViewState extends State<FinancialReportsView> {
         const SizedBox(height: 20),
         ElevatedButton.icon(
           onPressed: _exportCsv,
-          icon: const Icon(Icons.download),
+          icon: const Icon(Icons.table_chart_outlined),
           label: const Text('Export CSV'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 50),
+          ),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _exportExcel,
+          icon: const Icon(Icons.download_outlined),
+          label: const Text('Export Excel Ledger (.xlsx)'),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: AppColors.primary),
+            foregroundColor: AppColors.primary,
             minimumSize: const Size(double.infinity, 50),
           ),
         ),
