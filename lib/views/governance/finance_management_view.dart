@@ -842,7 +842,7 @@ class _ContributionBreakdownSheetState
     showDialog(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (builderCtx, setDialogState) => AlertDialog(
           title: const Text('Edit Contribution'),
           content: SingleChildScrollView(
             child: Column(
@@ -860,7 +860,7 @@ class _ContributionBreakdownSheetState
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedStatus,
+                  initialValue: selectedStatus,
                   decoration: const InputDecoration(
                     labelText: 'Status',
                     border: OutlineInputBorder(),
@@ -882,7 +882,7 @@ class _ContributionBreakdownSheetState
                 InkWell(
                   onTap: () async {
                     final picked = await showDatePicker(
-                      context: context,
+                      context: builderCtx,
                       initialDate: selectedPaidDate ?? DateTime.now(),
                       firstDate: DateTime(2020),
                       lastDate: DateTime(2100),
@@ -916,7 +916,7 @@ class _ContributionBreakdownSheetState
               onPressed: () async {
                 final amount = double.tryParse(amountController.text.trim());
                 if (amount == null || amount <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  ScaffoldMessenger.of(builderCtx).showSnackBar(
                     const SnackBar(content: Text('Please enter a valid amount')),
                   );
                   return;
@@ -930,28 +930,34 @@ class _ContributionBreakdownSheetState
                         DateFormat('yyyy-MM-dd').format(selectedPaidDate!),
                 };
 
-                final success = await context
-                    .read<FinanceViewModel>()
-                    .updateContribution(contribution.id, payload);
+                final financeVm = context.read<FinanceViewModel>();
+                final messenger = ScaffoldMessenger.of(context);
 
-                if (mounted) {
+                final success = await financeVm.updateContribution(
+                  contribution.id,
+                  payload,
+                );
+
+                if (dialogCtx.mounted) {
                   Navigator.pop(dialogCtx);
-                  if (success) {
-                    await _loadContributions();
-                    ScaffoldMessenger.of(this.context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Contribution updated successfully'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(this.context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Failed to update contribution'),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                  }
+                }
+                if (!mounted) return;
+
+                if (success) {
+                  await _loadContributions();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Contribution updated successfully'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                } else {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to update contribution'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
                 }
               },
               child: const Text('Save'),
@@ -997,34 +1003,40 @@ class _ContributionBreakdownSheetState
             onPressed: () async {
               final reason = reasonController.text.trim();
               if (reason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(dialogCtx).showSnackBar(
                   const SnackBar(content: Text('Please provide a reason')),
                 );
                 return;
               }
 
-              final success = await context
-                  .read<FinanceViewModel>()
-                  .archiveContribution(contribution.id, reason);
+              final financeVm = context.read<FinanceViewModel>();
+              final messenger = ScaffoldMessenger.of(context);
 
-              if (mounted) {
+              final success = await financeVm.archiveContribution(
+                contribution.id,
+                reason,
+              );
+
+              if (dialogCtx.mounted) {
                 Navigator.pop(dialogCtx);
-                if (success) {
-                  await _loadContributions();
-                  ScaffoldMessenger.of(this.context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Contribution archived successfully'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(this.context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Failed to archive contribution'),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
+              }
+              if (!mounted) return;
+
+              if (success) {
+                await _loadContributions();
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Contribution archived successfully'),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
+              } else {
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to archive contribution'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
