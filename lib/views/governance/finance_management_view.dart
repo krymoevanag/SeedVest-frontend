@@ -833,6 +833,208 @@ class _ContributionBreakdownSheetState
     }
   }
 
+  void _showEditContributionDialog(Contribution contribution) {
+    final amountController =
+        TextEditingController(text: contribution.amount.toString());
+    String selectedStatus = contribution.status;
+    DateTime? selectedPaidDate = contribution.paidDate;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Edit Contribution'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: amountController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Amount (KES)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedStatus,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'PAID', child: Text('PAID')),
+                    DropdownMenuItem(value: 'PENDING', child: Text('PENDING')),
+                    DropdownMenuItem(value: 'LATE', child: Text('LATE')),
+                    DropdownMenuItem(value: 'OVERDUE', child: Text('OVERDUE')),
+                    DropdownMenuItem(value: 'REJECTED', child: Text('REJECTED')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => selectedStatus = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: selectedPaidDate ?? DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setDialogState(() => selectedPaidDate = picked);
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Paid Date',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_today, size: 20),
+                    ),
+                    child: Text(
+                      selectedPaidDate == null
+                          ? 'Not set'
+                          : DateFormat('dd MMM yyyy').format(selectedPaidDate!),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final amount = double.tryParse(amountController.text.trim());
+                if (amount == null || amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid amount')),
+                  );
+                  return;
+                }
+
+                final payload = <String, dynamic>{
+                  'amount': amount,
+                  'status': selectedStatus,
+                  if (selectedPaidDate != null)
+                    'paid_date':
+                        DateFormat('yyyy-MM-dd').format(selectedPaidDate!),
+                };
+
+                final success = await context
+                    .read<FinanceViewModel>()
+                    .updateContribution(contribution.id, payload);
+
+                if (mounted) {
+                  Navigator.pop(dialogCtx);
+                  if (success) {
+                    await _loadContributions();
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Contribution updated successfully'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to update contribution'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showArchiveContributionDialog(Contribution contribution) {
+    final reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Archive Contribution'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Archive contribution of KES ${contribution.amount} (${contribution.status})? This action is audit-logged.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Reason for archiving',
+                hintText: 'e.g. Duplicate entry or correction',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final reason = reasonController.text.trim();
+              if (reason.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please provide a reason')),
+                );
+                return;
+              }
+
+              final success = await context
+                  .read<FinanceViewModel>()
+                  .archiveContribution(contribution.id, reason);
+
+              if (mounted) {
+                Navigator.pop(dialogCtx);
+                if (success) {
+                  await _loadContributions();
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Contribution archived successfully'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to archive contribution'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Contribution> get _visibleContributions {
     final filtered = _contributions.where((contribution) {
       if (_statusFilter == 'ALL') {
@@ -1073,6 +1275,28 @@ class _ContributionBreakdownSheetState
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 11,
                                               ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          GestureDetector(
+                                            onTap: () =>
+                                                _showEditContributionDialog(
+                                                    contribution),
+                                            child: const Icon(
+                                              Icons.edit_outlined,
+                                              size: 20,
+                                              color: Colors.blueGrey,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          GestureDetector(
+                                            onTap: () =>
+                                                _showArchiveContributionDialog(
+                                                    contribution),
+                                            child: Icon(
+                                              Icons.delete_outline,
+                                              size: 20,
+                                              color: Colors.grey[500],
                                             ),
                                           ),
                                         ],

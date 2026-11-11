@@ -929,6 +929,14 @@ class ApiService {
     );
   }
 
+  Future<Response> updatePenalty(int id, Map<String, dynamic> data) async {
+    return await _executeWithOfflineQueue(
+      'PATCH',
+      'finance/penalties/$id/',
+      data: data,
+    );
+  }
+
   Future<Response> archivePenalty(int id, String reason) async {
     return await _executeWithOfflineQueue(
       'DELETE',

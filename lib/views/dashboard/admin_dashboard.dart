@@ -188,7 +188,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           .then((_) => viewModel.refreshStats()),
                 ),
                 _StatCard(
-                  title: 'Total Savings',
+                  title: 'Group Total Savings',
                   value: currencyFormat.format(totalSavings),
                   icon: Icons.savings_outlined,
                   color: Colors.green,
@@ -198,7 +198,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           .then((_) => viewModel.refreshStats()),
                 ),
                 _StatCard(
-                  title: 'Total Penalties',
+                  title: 'Group Total Penalties',
                   value: currencyFormat.format(totalPenalties),
                   icon: Icons.gavel,
                   color: Colors.redAccent,

@@ -518,6 +518,24 @@ class FinanceViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> updatePenalty(int id, Map<String, dynamic> data) async {
+    _setLoading(true);
+    try {
+      final response = await _apiService.updatePenalty(id, data);
+      if (response.statusCode == 200) {
+        await fetchAdminMemberships();
+        await fetchAdminGroupSummary();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error updating penalty: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<bool> archivePenalty(int id, String reason) async {
     _setLoading(true);
     try {

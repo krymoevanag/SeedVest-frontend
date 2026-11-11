@@ -216,11 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
               type: DioExceptionType.unknown,
             );
           }
-          if (mounted) {
-            if (!isOfflineLogin) {
-              await _maybePromptBiometricOptIn();
-            }
-          }
+          // Biometric prompt disabled until proper implementation
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/dashboard');
           }
@@ -258,7 +254,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final data = e.response?.data;
 
         if (status == 401) {
-          errorMessage = "Invalid email or password. Please try again.";
+          errorMessage = "Invalid credentials or password. Please try again.";
         } else if (status == 403) {
           if (data is Map && data.containsKey("error")) {
             final backendError = data["error"].toString();
@@ -379,19 +375,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 48),
                   TextFormField(
                     controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
+                    keyboardType: TextInputType.text,
                     decoration: InputDecoration(
-                      labelText: "Email Address",
-                      prefixIcon: const Icon(Icons.email_outlined),
+                      labelText: "Email, Phone or Membership Number",
+                      hintText: "e.g. 0712345678, MBR-2026-0001, or email",
+                      prefixIcon: const Icon(Icons.person_outline),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return "Email is required";
+                      if (value == null || value.trim().isEmpty) {
+                        return "Please enter your email, phone, or membership number";
                       }
-                      if (!value.contains("@")) return "Invalid email address";
+                      final trimmed = value.trim();
+                      if (trimmed.contains('@') && !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(trimmed)) {
+                        return "Invalid email address";
+                      }
                       return null;
                     },
                   ),

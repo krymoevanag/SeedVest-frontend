@@ -98,6 +98,12 @@ class _PenaltiesViewState extends State<PenaltiesView> {
                                     PenaltyStatementView(penalty: penalty),
                               ),
                             ),
+                            onEdit: (context.read<UserViewModel>()
+                                        .isTreasurer ||
+                                    context.read<UserViewModel>().isAdmin)
+                                ? () => _showEditDialog(
+                                    context, viewModel, penalty)
+                                : null,
                             onArchive: (context.read<UserViewModel>()
                                         .isTreasurer ||
                                     context.read<UserViewModel>().isAdmin)
@@ -109,6 +115,87 @@ class _PenaltiesViewState extends State<PenaltiesView> {
                       }),
                     ],
                   ),
+      ),
+    );
+  }
+
+  void _showEditDialog(
+      BuildContext context, PenaltiesViewModel viewModel, Penalty penalty) {
+    final amountController =
+        TextEditingController(text: penalty.amount.toString());
+    final reasonController = TextEditingController(text: penalty.reason);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Edit Penalty"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: amountController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: "Amount (KES)",
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: "Reason",
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final amount = double.tryParse(amountController.text.trim());
+              final reason = reasonController.text.trim();
+              if (amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text("Please enter a valid penalty amount")),
+                );
+                return;
+              }
+              if (reason.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Please provide a reason")),
+                );
+                return;
+              }
+
+              final success = await viewModel.updatePenalty(penalty.id, {
+                'amount': amount,
+                'reason': reason,
+              });
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success
+                        ? "Penalty updated successfully"
+                        : "Failed to update penalty"),
+                    backgroundColor:
+                        success ? AppColors.success : AppColors.error,
+                  ),
+                );
+              }
+            },
+            child: const Text("Save"),
+          ),
+        ],
       ),
     );
   }
@@ -257,12 +344,14 @@ class _PenaltyCard extends StatelessWidget {
     required this.penalty,
     required this.currencyFormat,
     required this.onTap,
+    this.onEdit,
     this.onArchive,
   });
 
   final Penalty penalty;
   final NumberFormat currencyFormat;
   final VoidCallback onTap;
+  final VoidCallback? onEdit;
   final VoidCallback? onArchive;
 
   @override
@@ -369,15 +458,29 @@ class _PenaltyCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (onArchive != null)
-                GestureDetector(
-                  onTap: onArchive,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Icon(Icons.delete_outline,
-                        color: Colors.grey[400], size: 18),
-                  ),
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onEdit != null)
+                    GestureDetector(
+                      onTap: onEdit,
+                      child: const Padding(
+                        padding: EdgeInsets.only(top: 6, right: 8),
+                        child: Icon(Icons.edit_outlined,
+                            color: Colors.blueGrey, size: 18),
+                      ),
+                    ),
+                  if (onArchive != null)
+                    GestureDetector(
+                      onTap: onArchive,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Icon(Icons.delete_outline,
+                            color: Colors.grey[400], size: 18),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
 
