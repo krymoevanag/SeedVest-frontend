@@ -75,55 +75,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  Future<void> _maybePromptBiometricOptIn() async {
-    final alreadyEnabled = await _apiService.isBiometricEnabled();
-    final canAuthenticate = await _biometricService.canAuthenticate();
-
-    if (alreadyEnabled || !canAuthenticate || !mounted) return;
-
-    final label = await _biometricService.biometricLabel();
-    if (!mounted) return;
-
-    final shouldEnable = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Enable $label Login?'),
-        content: Text(
-          'Use $label for faster sign in on this device. '
-          'You can disable it anytime in Profile.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Not now'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Enable'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldEnable != true || !mounted) return;
-
-    final authenticated = await _biometricService.authenticate(
-      reason: 'Confirm biometric setup for SeedVest',
-    );
-
-    if (!authenticated || !mounted) return;
-
-    await _apiService.setBiometricEnabled(true);
-    await _loadBiometricState();
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label login enabled.'),
-      ),
-    );
-  }
-
   Future<void> _handleBiometricLogin() async {
     if (_isLoading) return;
 
